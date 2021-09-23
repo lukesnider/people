@@ -1,11 +1,11 @@
 <template>
-  <div class="people">
+  <div id="people" class="people">
     <!--<button class="absolute top-0 left-0 z-50 bg-black text-white" @click="Clean()">Clean</button>-->
-    <div v-if="user" class="board">
+    <!--<div v-if="user" class="board">
       <div class="person my-4 w-full" v-for="(person,i) in people" :key="i" :style="'transform:translate('+person.position.x+'px,'+person.position.y+'px);'">
         <div class="text-sm">{{person.name}}</div>
       </div>
-    </div>
+    </div>-->
   </div>
 </template>
 
@@ -13,22 +13,40 @@
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue' 
+import Phaser from 'phaser'
+
 export default {
   name: 'Home',
   data() {
     return {
+      config: {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 200 }
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create
+        }
+      },
     }
   },
   setup() {
     const router = useRouter()
     const store = useStore()
-    if(!store.state.user) {
+    if(!store.state.user || !store.state.user.version || store.state.user.version != "0.1.0") {
+      store.dispatch("Logout");
       router.push({
         name: "Profile"
       });
     }
     const people = ref({})
-    const websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev")
+    const websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
     websocket.addEventListener("message", (event) => {
       let data = JSON.parse(event.data);
       if(data.joined) {
@@ -77,9 +95,6 @@ export default {
           websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
         }
     };
-
-
-
     return {
       people,
       websocket

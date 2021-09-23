@@ -2,5 +2,9 @@
   "name": "people-engine",
   "version": "1.0.0",
   "description": "A template for kick-starting a Cloudflare Workers project using Durable Objects",
-  "module": "./src/index.mjs"
+  "module": "./src/index.mjs",
+  "dependencies": {
+    "@tsndr/cloudflare-worker-jwt": "^1.1.2",
+    "jsonwebtoken": "^8.5.1"
+  }
 }

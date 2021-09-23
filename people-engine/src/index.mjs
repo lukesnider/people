@@ -21,7 +21,6 @@ async function handleRequest(request, env) {
     })
   }
 }
-
 // Durable Object
 
 export class People {
