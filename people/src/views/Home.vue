@@ -13,7 +13,7 @@
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue' 
-import '../game/main.js'
+import {Game} from '../game/main.js'
 
 export default {
   name: 'Home',
@@ -94,6 +94,9 @@ export default {
     },
   },
   mounted() {
+    let vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0)
+    let vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+    new Game(vw,vh);
   },
   computed: {
     user() {
@@ -106,7 +109,7 @@ export default {
 </script>
 <style scoped>
 .people {
-  height:100%;
+  height:100vh;
   width: 100%;
 }
 .board {

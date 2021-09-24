@@ -12,6 +12,7 @@
     "core-js": "^3.6.5",
     "js-cookie": "^3.0.1",
     "jsonwebtoken": "^8.5.1",
+    "kaboom": "^0.5.1",
     "md5": "^2.3.0",
     "phaser": "^3.55.2",
     "uuid": "^3.4.0",
@@ -32,17 +33,6 @@
     "eslint-plugin-vue": "^7.0.0",
     "postcss": "^7.0.36",
     "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.2.14"
-  },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/vue3-essential",
-      "eslint:recommended"
-    ],
-    "rules": {}
   },
   "browserslist": [
     "> 1%",
