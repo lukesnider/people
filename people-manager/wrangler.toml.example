@@ -1,0 +1,19 @@
+name = "people-manager"
+type = "webpack"
+account_id = ""
+workers_dev = true
+route = ""
+zone_id = ""
+webpack_config = "webpack.development.js"
+compatibility_date = "2021-09-23"
+kv_namespaces = [ 
+  { binding = "PEOPLE", id = "",preview_id = "" }
+]
+
+[vars]
+JWT_SECRET = ""
+USER_PW_SECRET = ""
+
+[env.production]
+name = "people-manager-production"
+webpack_config = "webpack.production.js"
