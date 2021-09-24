@@ -6,6 +6,10 @@
         <div class="text-sm">{{person.name}}</div>
       </div>
     </div>-->
+    <ion-phaser
+      v-bind:game.prop='game'
+      v-bind:initialize.prop='initialize'
+    />
   </div>
 </template>
 
@@ -13,27 +17,41 @@
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue' 
-import Phaser from 'phaser'
+import Phaser from "phaser";
 
 export default {
   name: 'Home',
   data() {
     return {
-      config: {
+      initialize: true,
+      game: {
+        width: "100%",
+        height: "100%",
         type: Phaser.AUTO,
-        width: 800,
-        height: 600,
-        physics: {
-            default: 'arcade',
-            arcade: {
-                gravity: { y: 200 }
-            }
-        },
         scene: {
-            preload: preload,
-            create: create
+          preload() {
+            this.load.setBaseURL('/');
+
+            this.load.image('people', 'people.png');
+          },
+          init() {
+            this.cameras.main.setBackgroundColor("#24252A");
+          },
+          create() {
+            this.add.image(20, 20, 'people');
+            this.helloWorld = this.add.text(
+              this.cameras.main.centerX,
+              this.cameras.main.centerY,
+              "Hello World",
+              { font: "40px Arial",  fill: "#ffffff" }
+            );
+            this.helloWorld.setOrigin(0.5);
+          },
+          update() {
+            this.helloWorld.angle += 1;
+          }
         }
-      },
+      }
     }
   },
   setup() {
