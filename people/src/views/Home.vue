@@ -6,10 +6,6 @@
         <div class="text-sm">{{person.name}}</div>
       </div>
     </div>-->
-    <ion-phaser
-      v-bind:game.prop='game'
-      v-bind:initialize.prop='initialize'
-    />
   </div>
 </template>
 
@@ -17,41 +13,12 @@
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue' 
-import Phaser from "phaser";
+import '../game/main.js'
 
 export default {
   name: 'Home',
   data() {
     return {
-      initialize: true,
-      game: {
-        width: "100%",
-        height: "100%",
-        type: Phaser.AUTO,
-        scene: {
-          preload() {
-            this.load.setBaseURL('/');
-
-            this.load.image('people', 'people.png');
-          },
-          init() {
-            this.cameras.main.setBackgroundColor("#24252A");
-          },
-          create() {
-            this.add.image(20, 20, 'people');
-            this.helloWorld = this.add.text(
-              this.cameras.main.centerX,
-              this.cameras.main.centerY,
-              "Hello World",
-              { font: "40px Arial",  fill: "#ffffff" }
-            );
-            this.helloWorld.setOrigin(0.5);
-          },
-          update() {
-            this.helloWorld.angle += 1;
-          }
-        }
-      }
     }
   },
   setup() {
@@ -85,34 +52,34 @@ export default {
     websocket.addEventListener("open", () => {
         websocket.send(JSON.stringify(store.state.user))
     })
-    document.onkeypress = function (e) {
-        e = e || window.event;
-        let position;
-        if(e.keyCode == 119){
-          //up
-          position = {x: store.state.user.position.x,y:store.state.user.position.y - 15}
-          store.commit('setPosition',position)
-          websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
-        }
-        if(e.keyCode == 115){
-          //down
-          position = {x: store.state.user.position.x,y:store.state.user.position.y + 15}
-          store.commit('setPosition',position)
-          websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
-        }
-        if(e.keyCode == 97){
-          //left
-          position = {x: store.state.user.position.x - 15,y:store.state.user.position.y}
-          store.commit('setPosition',position)
-          websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
-        }
-        if(e.keyCode == 100){
-          //right
-          position = {x: store.state.user.position.x + 15,y:store.state.user.position.y}
-          store.commit('setPosition',position)
-          websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
-        }
-    };
+    // document.onkeypress = function (e) {
+    //     e = e || window.event;
+    //     let position;
+    //     if(e.keyCode == 119){
+    //       //up
+    //       position = {x: store.state.user.position.x,y:store.state.user.position.y - 15}
+    //       store.commit('setPosition',position)
+    //       websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
+    //     }
+    //     if(e.keyCode == 115){
+    //       //down
+    //       position = {x: store.state.user.position.x,y:store.state.user.position.y + 15}
+    //       store.commit('setPosition',position)
+    //       websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
+    //     }
+    //     if(e.keyCode == 97){
+    //       //left
+    //       position = {x: store.state.user.position.x - 15,y:store.state.user.position.y}
+    //       store.commit('setPosition',position)
+    //       websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
+    //     }
+    //     if(e.keyCode == 100){
+    //       //right
+    //       position = {x: store.state.user.position.x + 15,y:store.state.user.position.y}
+    //       store.commit('setPosition',position)
+    //       websocket.send(JSON.stringify({update_position:{uid:store.state.user.uid,position:store.state.user.position}}))
+    //     }
+    // };
     return {
       people,
       websocket
