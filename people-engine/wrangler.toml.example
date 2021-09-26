@@ -9,8 +9,11 @@ kv_namespaces = [
   { binding = "PEOPLE_DATA", id = "", preview_id = "" }
 ]
 
+[build]
+command = "npm install && npm run build"
+
 [build.upload]
-dir = "src"
+dir = "dist"
 format = "modules"
 main = "./index.mjs"
 

@@ -1,3 +1,10 @@
+// import jwt from "@tsndr/cloudflare-worker-jwt";
+const corsHeaders = {
+  "content-type": "application/json;charset=UTF-8",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "*",
+}
 // Worker
 export default {
   async fetch(request, env) {
@@ -34,6 +41,25 @@ export class People {
   }
   // Handle HTTP requests from clients.
   async fetch(request) {
+    // let auth_email=false,decoded=false;
+    // const url = new URL(request.url)
+    // let jwt_token = url.searchParams.get("token");
+    // try {
+    //   let isValid = await jwt.verify(jwt_token,USER_PW_SECRET);
+    //   if(!isValid) {
+    //     return new Response("Invalid Token", {
+    //       headers: corsHeaders,
+    //       status: 403,
+    //     })
+    //   }
+    //   decoded = await jwt.decode(jwt_token);
+    //   auth_email = decoded.email;
+    // } catch(err) {
+    //   return new Response(err.message, {
+    //     headers: corsHeaders,
+    //     status: 403,
+    //   })
+    // }
     const webSocketPair = new WebSocketPair()
     const [client, server] = Object.values(webSocketPair)
     let webSocket = server
@@ -48,11 +74,8 @@ export class People {
         return;
       }
       let data = JSON.parse(msg.data);
-      if(data.clean_house) {
-        this.people = {}
-        return;
-      }
       if(data.update_position) {
+        this.people[data.update_position.uid].position = data.update_position.position;
         this.broadcast(JSON.stringify(data));
       }
       if(!receivedUserInfo){
@@ -85,6 +108,9 @@ export class People {
     webSocket.addEventListener("close", closeOrErrorHandler);
     webSocket.addEventListener("error", closeOrErrorHandler);
     return new Response(null, {
+      // headers: {
+      //   "ERRORLOG": auth_email
+      // },
       status: 101,
       webSocket: client
     })
