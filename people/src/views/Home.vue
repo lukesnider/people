@@ -36,15 +36,12 @@ export default {
     }
   },
   methods: {
-    ShowBuildMenu() {
-      this.show.building_menu = true;
-    },
   },
   mounted() {
     const store = useStore()
     this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
     let gameContainer = document.querySelector('#people');
-    this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this);
+    this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket);
   },
   computed: {
     user() {

@@ -1,13 +1,15 @@
+import { v4 as uuidv4 } from 'uuid';
 let k;
 export class Game{
-    constructor(width,height,user,vm) {
-        this.vm = vm;
+    constructor(width,height,user,websocket) {
+        this.websocket = websocket;
         this.user = user;
         this.width = width;
         this.height = height;
         this.player;
         this.players = {};
-        this.player_speed = 1;
+        this.player_speed = 1.5;
+        this.bullet_speed = 620;
         this.Init();
     }
     async Init() {
@@ -23,9 +25,14 @@ export class Game{
         });
         this.LoadSprites();
         this.SetupWebsocket();
+        k.action("bullet", (b) => {
+            b.move(b.direction.x,b.direction.y);
+            //b.move(0, -this.bullet_speed);
+            setTimeout(()=>{k.destroy(b)},1000)
+        });
     }
     SetupWebsocket(){
-        this.vm.websocket.addEventListener("message", (event) => {
+        this.websocket.addEventListener("message", (event) => {
             let data = JSON.parse(event.data);
             if(data.joined) {
               this.LoadPlayer(data.joined);
@@ -37,6 +44,11 @@ export class Game{
                 }
               }
             }
+            if(data.structures) {
+              for(let uid in data.structures) {
+                this.AddStructure(data.structures[uid]);
+              }
+            }
             if(data.quit) {
               if(this.players[data.quit.uid]) {
                 this.RemovePlayer(data.quit.uid);
@@ -45,12 +57,17 @@ export class Game{
             if(data.update_position) {
               this.UpdatePlayerPosition(data);
             }
+            if(data.add_structure) {
+                this.AddStructure(data.add_structure);
+            }
           })
-          this.vm.websocket.addEventListener("open", () => {
-              this.vm.websocket.send(JSON.stringify(this.user))
+          this.websocket.addEventListener("open", () => {
+              this.websocket.send(JSON.stringify(this.user))
           })
     }
     LoadSprites() {
+        k.loadSprite('bullet','bullet.png');
+        k.loadSprite('steel','steel.png');
         k.loadSprite('people','people.png',{
             sliceX: 2,
             sliceY: 1,
@@ -66,24 +83,23 @@ export class Game{
                 k.sprite('people'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
-                k.solid(),
                 "person",
-                {player_data: player_data}
+                {meta: player_data}
             ]);
             this.PlayerMovement(this.players[player_data.uid]);
+            this.player = this.players[player_data.uid];
         }else{
             this.players[player_data.uid] = k.add([
                 k.sprite('people'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
-                k.solid(),
                 "person",
-                {player_data: player_data}
+                {meta: player_data}
             ]);
         }
         this.players[player_data.uid].player_name_text = k.add([
-            k.text(player_data.name, 12,{
-                width: 120
+            k.text(player_data.name, 8,{
+                width: 200
             }),
             k.color(rgba(0, 0, 0,1)),
             k.pos(this.ParserPlayerTextPos(this.players[player_data.uid].pos)),
@@ -92,7 +108,7 @@ export class Game{
     ParserPlayerTextPos(position){
         return {
             x: position.x,
-            y: position.y-25,
+            y: position.y-10,
         }
     }
     RemovePlayer(player_data) {
@@ -101,37 +117,117 @@ export class Game{
     }
     PlayerMovement(player) {
         player.action(() => {
+            player.pushOutAll();
             k.camPos(player.pos);
             player.player_name_text.pos = this.ParserPlayerTextPos(player.pos);
         });
         k.keyDown("left", () => {
-            player.pos.x -= this.player_speed;
-            this.SendMovement(player)
+            if (!k.keyIsDown("d")) {
+                player.pos.x -= this.player_speed;
+                this.SendMovement(player)
+            }
         });    
         k.keyDown("right", () => {
-            player.pos.x += this.player_speed;
-            this.SendMovement(player)
+            if (!k.keyIsDown("d")) {
+                player.pos.x += this.player_speed;
+                this.SendMovement(player)
+            }
         });    
         k.keyDown("up", () => {
-            player.pos.y -= this.player_speed;
-            this.SendMovement(player)
+            if (!k.keyIsDown("d")) {
+                player.pos.y -= this.player_speed;
+                this.SendMovement(player)
+            }
         });    
         k.keyDown("down", () => {
-            player.pos.y += this.player_speed;
-            this.SendMovement(player)
+            if (!k.keyIsDown("d")) {
+                player.pos.y += this.player_speed;
+                this.SendMovement(player)
+            }
         });
-        let VM = this.vm;
+        k.keyDown("d", () => {
+            if (k.keyIsPressed("right")) {
+                this.BuildStructure({x:player.pos.x + 50,y:player.pos.y+15},player)
+            }
+            if (k.keyIsPressed("left")) {
+                this.BuildStructure({x:player.pos.x - 25,y:player.pos.y+15},player)
+            }
+            if (k.keyIsPressed("up")) {
+                this.BuildStructure({x:player.pos.x + 15,y:player.pos.y - 25},player)
+            }
+            if (k.keyIsPressed("down")) {
+                this.BuildStructure({x:player.pos.x + 15,y:player.pos.y + 50},player)
+            }
+        });
         // only trigger once when the user presses
-        keyPress("b", () => {
-            VM.show.building_menu = !VM.show.building_menu;
-            // k.addText("You Pressed B!", 32, {
-            //     pos: {x:15,y:15},
-            //     color:(rgba(0, 0, 0,1)),
-            // });
+        k.keyPress("space", () => {
+            if (k.keyIsDown("right")) {
+                this.BuildBullet(player,{x:+this.bullet_speed,y:0});
+            }
+            if (k.keyIsDown("left")) {
+                this.BuildBullet(player,{x:-this.bullet_speed,y:0});
+            }
+            if (k.keyIsDown("up")) {
+                this.BuildBullet(player,{x:0,y:-this.bullet_speed});
+            }
+            if (k.keyIsDown("down")) {
+                this.BuildBullet(player,{x:0,y:+this.bullet_speed});
+            }
         });
     }
+    BuildBullet(player,direction) {
+        let uid = uuidv4();
+        k.add([
+            rect(4, 4),
+            area(),
+            pos(player.pos),
+            origin("center"),
+            color(0, 0, 1),
+            "bullet",
+            {
+                uid: uid,
+                direction:direction,
+            },
+        ]);
+        // bullet.collides("structure", (s) => {
+        //     console.log(s)
+        //     // k.destroy(b);
+        //     // k.destroy(s);
+        // });
+        this.websocket.send(JSON.stringify({build_bullet:{uid: uid,player_uid:player.meta.uid,direction:direction}}))
+    }
+    BuildStructure(pos,player) {
+        let uid = uuidv4();
+        k.add([
+            k.sprite('steel'),
+            k.pos(pos),
+            k.area(),
+            k.scale(2),
+            k.solid(),
+            "structure",
+            {
+                player: player.meta.uid,
+                uid: uid,
+            },
+        ]);
+        this.websocket.send(JSON.stringify({build_structure:{uid: uid,player_uid:player.meta.uid,pos: pos}}))
+    }
+    AddStructure(structure) {
+        k.add([
+            k.sprite('steel'),
+            k.pos(structure.pos),
+            k.area(),
+            k.scale(2),
+            k.solid(),
+            "structure",
+            {
+                player: structure.player,
+                uid: structure.uid,
+            },
+        ]);
+    }
     SendMovement(player) {
-        this.vm.websocket.send(JSON.stringify({update_position:{uid:this.user.uid,position:player.pos}}))
+        this.websocket.send(JSON.stringify({update_position:{uid:this.user.uid,position:player.pos}}))
     }
     UpdatePlayerPosition(data) {
         if(data.update_position.uid != this.user.uid) {

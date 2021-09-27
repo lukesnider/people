@@ -11,7 +11,6 @@ export default {
     return await handleRequest(request, env);
   }
 }
-
 async function handleRequest(request, env) {
   try {
     const upgradeHeader = request.headers.get("Upgrade")
@@ -29,14 +28,18 @@ async function handleRequest(request, env) {
   }
 }
 // Durable Object
-
 export class People {
   constructor(state, env) {
     this.state = state;
     this.people = {};
+    this.structures = {};
     this.state.blockConcurrencyWhile(async () => {
+        let stored_structures= await this.state.storage.get("structures");
+        this.structures = stored_structures || {};
         let stored_sessions= await this.state.storage.get("sessions");
         this.sessions = stored_sessions || [];
+        let stored_people= await this.state.storage.get("people");
+        this.people = stored_people || {};
     })
   }
   // Handle HTTP requests from clients.
@@ -78,13 +81,37 @@ export class People {
         this.people[data.update_position.uid].position = data.update_position.position;
         this.broadcast(JSON.stringify(data));
       }
+      if(data.build_structure) {
+        let structure = {
+          uid: data.build_structure.uid,
+          player: data.build_structure.player_uid,
+          pos: data.build_structure.pos,
+        };
+        this.structures[structure.uid] = structure;
+        this.broadcast(JSON.stringify({add_structure:structure}),structure.player_uid);
+      }
+      if(data.build_bullet) {
+        let bullet = {
+          uid: data.build_bullet.uid,
+          direction: data.build_bullet.direction,
+        };
+        this.broadcast(JSON.stringify({add_structure:structure}),structure.player_uid);
+      }
       if(!receivedUserInfo){
         session.name = "" + (data.name || "anonymous");
         session.uid = data.uid;
         if(!data.position) data.position = {x:50,y:50};
+        // if(!data.position) {
+        //   if(this.people[uid] && this.people[uid].position) {
+        //     data.position = this.people[uid].position;
+        //   }else{
+        //     data.position = {x:50,y:50};
+        //   }
+        // }
         this.people[data.uid] = data;
         this.broadcast(JSON.stringify({joined: data}));
         webSocket.send(JSON.stringify({people: this.people}));
+        webSocket.send(JSON.stringify({structures: this.structures}));
         receivedUserInfo = true;
         return new Response(null, {
           status: 101,
@@ -115,14 +142,18 @@ export class People {
       webSocket: client
     })
   }
-  broadcast(message) {
+  broadcast(message,others = false) {
     if (typeof message !== "string") {
       message = JSON.stringify(message);
     }
     let quitters = [];
     this.sessions = this.sessions.filter(session => {
       try {
-        session.webSocket.send(message);
+        if(others && session.uid != others) {
+          session.webSocket.send(message);
+        }else {
+          session.webSocket.send(message);
+        }
         return true;
       } catch (err) {
         session.quit = true;
