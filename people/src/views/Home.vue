@@ -1,5 +1,9 @@
 <template>
   <div id="people" class="people">
+    <div v-if="show.building_menu" class="building-menu fixed top-0 bottom-0 right-0 w-1/2 z-50 bg-white border-2 p-6">
+      <button @click="show.building_menu = false">Close</button>
+        Building Menu
+    </div>
   </div>
 </template>
 
@@ -12,6 +16,11 @@ export default {
   name: 'Home',
   data() {
     return {
+      show: {
+        building_menu: false,
+      },
+      websocket:false,
+      GameObject: false,
     }
   },
   setup() {
@@ -23,18 +32,19 @@ export default {
         name: "Profile"
       });
     }
-    let vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0)
-    let vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
-    const websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
-    let GameObject = new Game(vw,vh,store.state.user,websocket);
     return {
-      GameObject,
-      websocket
     }
   },
   methods: {
+    ShowBuildMenu() {
+      this.show.building_menu = true;
+    },
   },
   mounted() {
+    const store = useStore()
+    this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
+    let gameContainer = document.querySelector('#people');
+    this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this);
   },
   computed: {
     user() {

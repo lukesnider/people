@@ -1,7 +1,7 @@
 let k;
 export class Game{
-    constructor(width,height,user,websocket) {
-        this.websocket = websocket;
+    constructor(width,height,user,vm) {
+        this.vm = vm;
         this.user = user;
         this.width = width;
         this.height = height;
@@ -25,7 +25,7 @@ export class Game{
         this.SetupWebsocket();
     }
     SetupWebsocket(){
-        this.websocket.addEventListener("message", (event) => {
+        this.vm.websocket.addEventListener("message", (event) => {
             let data = JSON.parse(event.data);
             if(data.joined) {
               this.LoadPlayer(data.joined);
@@ -46,8 +46,8 @@ export class Game{
               this.UpdatePlayerPosition(data);
             }
           })
-          this.websocket.addEventListener("open", () => {
-              this.websocket.send(JSON.stringify(this.user))
+          this.vm.websocket.addEventListener("open", () => {
+              this.vm.websocket.send(JSON.stringify(this.user))
           })
     }
     LoadSprites() {
@@ -120,11 +120,18 @@ export class Game{
             player.pos.y += this.player_speed;
             this.SendMovement(player)
         });
-        // k.clicks("person", (c) => {
-        // });
+        let VM = this.vm;
+        // only trigger once when the user presses
+        keyPress("b", () => {
+            VM.show.building_menu = !VM.show.building_menu;
+            // k.addText("You Pressed B!", 32, {
+            //     pos: {x:15,y:15},
+            //     color:(rgba(0, 0, 0,1)),
+            // });
+        });
     }
     SendMovement(player) {
-        this.websocket.send(JSON.stringify({update_position:{uid:this.user.uid,position:player.pos}}))
+        this.vm.websocket.send(JSON.stringify({update_position:{uid:this.user.uid,position:player.pos}}))
     }
     UpdatePlayerPosition(data) {
         if(data.update_position.uid != this.user.uid) {
