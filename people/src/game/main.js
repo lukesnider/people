@@ -9,7 +9,7 @@ export class Game{
         this.player;
         this.players = {};
         this.player_speed = 1.5;
-        this.bullet_speed = 620;
+        this.bullet_speed = 1200;
         this.Init();
     }
     async Init() {
@@ -21,17 +21,26 @@ export class Game{
             height: this.height,
             stretch: true,
             letterbox: true,
-            clearColor: [ 255,255,255,255 ],
+            clearColor: [ 255,255,255 ],
         });
         this.LoadSprites();
         this.SetupWebsocket();
-        k.action("bullet", (b) => {
-            b.move(b.direction.x,b.direction.y);
-            //b.move(0, -this.bullet_speed);
-            setTimeout(()=>{k.destroy(b)},1000)
+        k.mouseClick((c)=>{
+            this.BuildStructure({x:k.mouseWorldPos().x,y:k.mouseWorldPos().y},this.player);
         });
+        //Shooting other players
+        // k.collides("person","bullet", (p,b) => {
+        //     if(p.meta.uid != b.meta.player_uid) {
+        //         console.log(p.meta,b.meta)
+        //         // k.destroy(b);
+        //         // k.destroy(p);
+        //     }
+        // });
     }
-    SetupWebsocket(){
+    GetPlayerPosition() {
+        return this.player.pos;
+    }
+    SetupWebsocket(){  
         this.websocket.addEventListener("message", (event) => {
             let data = JSON.parse(event.data);
             if(data.joined) {
@@ -48,6 +57,9 @@ export class Game{
               for(let uid in data.structures) {
                 this.AddStructure(data.structures[uid]);
               }
+            //   k.every((obj) => {
+            //      console.log(obj.pos)
+            // })
             }
             if(data.quit) {
               if(this.players[data.quit.uid]) {
@@ -60,6 +72,9 @@ export class Game{
             if(data.add_structure) {
                 this.AddStructure(data.add_structure);
             }
+            if(data.add_bullet) {
+                this.AddBullet(data.add_bullet);
+            }
           })
           this.websocket.addEventListener("open", () => {
               this.websocket.send(JSON.stringify(this.user))
@@ -68,40 +83,36 @@ export class Game{
     LoadSprites() {
         k.loadSprite('bullet','bullet.png');
         k.loadSprite('steel','steel.png');
-        k.loadSprite('people','people.png',{
-            sliceX: 2,
-            sliceY: 1,
-            anims: {
-                man: { from: 1, to: 1 },
-                woman: { from: 2, to: 2 }
-            }
-        });
+        k.loadSprite('robot','robot.png');
     }
     LoadPlayer(player_data) {
         if(player_data.uid == this.user.uid) {
             this.players[player_data.uid] = k.add([
-                k.sprite('people'),
+                k.sprite('robot'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
+                // k.solid(),
                 "person",
                 {meta: player_data}
             ]);
-            this.PlayerMovement(this.players[player_data.uid]);
             this.player = this.players[player_data.uid];
+            this.PlayerMovement(this.player);
         }else{
             this.players[player_data.uid] = k.add([
-                k.sprite('people'),
+                k.sprite('robot'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
+                // k.solid(),
                 "person",
                 {meta: player_data}
             ]);
         }
         this.players[player_data.uid].player_name_text = k.add([
-            k.text(player_data.name, 8,{
+            k.text(player_data.name,{
+                size: 12,
                 width: 200
             }),
-            k.color(rgba(0, 0, 0,1)),
+            k.color(rgb(0, 0, 0,1)),
             k.pos(this.ParserPlayerTextPos(this.players[player_data.uid].pos)),
         ]);
     }
@@ -121,80 +132,86 @@ export class Game{
             k.camPos(player.pos);
             player.player_name_text.pos = this.ParserPlayerTextPos(player.pos);
         });
-        k.keyDown("left", () => {
-            if (!k.keyIsDown("d")) {
-                player.pos.x -= this.player_speed;
-                this.SendMovement(player)
-            }
+        k.keyDown("a", () => {
+            player.pos.x -= this.player_speed;
+            this.SendMovement(player)
         });    
-        k.keyDown("right", () => {
-            if (!k.keyIsDown("d")) {
-                player.pos.x += this.player_speed;
-                this.SendMovement(player)
-            }
-        });    
-        k.keyDown("up", () => {
-            if (!k.keyIsDown("d")) {
-                player.pos.y -= this.player_speed;
-                this.SendMovement(player)
-            }
-        });    
-        k.keyDown("down", () => {
-            if (!k.keyIsDown("d")) {
-                player.pos.y += this.player_speed;
-                this.SendMovement(player)
-            }
-        });
         k.keyDown("d", () => {
-            if (k.keyIsPressed("right")) {
-                this.BuildStructure({x:player.pos.x + 50,y:player.pos.y+15},player)
-            }
-            if (k.keyIsPressed("left")) {
-                this.BuildStructure({x:player.pos.x - 25,y:player.pos.y+15},player)
-            }
-            if (k.keyIsPressed("up")) {
-                this.BuildStructure({x:player.pos.x + 15,y:player.pos.y - 25},player)
-            }
-            if (k.keyIsPressed("down")) {
-                this.BuildStructure({x:player.pos.x + 15,y:player.pos.y + 50},player)
-            }
+            player.pos.x += this.player_speed;
+            this.SendMovement(player)
+        });    
+        k.keyDown("w", () => {
+            player.pos.y -= this.player_speed;
+            this.SendMovement(player)
+        });    
+        k.keyDown("s", () => {
+            player.pos.y += this.player_speed;
+            this.SendMovement(player)
         });
-        // only trigger once when the user presses
         k.keyPress("space", () => {
-            if (k.keyIsDown("right")) {
-                this.BuildBullet(player,{x:+this.bullet_speed,y:0});
-            }
-            if (k.keyIsDown("left")) {
-                this.BuildBullet(player,{x:-this.bullet_speed,y:0});
-            }
-            if (k.keyIsDown("up")) {
-                this.BuildBullet(player,{x:0,y:-this.bullet_speed});
-            }
-            if (k.keyIsDown("down")) {
-                this.BuildBullet(player,{x:0,y:+this.bullet_speed});
-            }
+            //console.log(player.width,player.height)
+            // console.log(k.mousePos().angle())
+            //let distance = Math.hypot(k.mousePos().x-player.pos.x, k.mousePos().y-player.pos.y);
+            // console.log(distance)
+            let move = {
+                x: this.bullet_speed*Math.cos(k.mouseWorldPos().angle()),//Math.cos(k.mousePos().angle()*Math.PI/180) + k.mousePos().x,
+                y: this.bullet_speed*Math.sin(k.mouseWorldPos().angle()),//Math.sin(k.mousePos().angle()*Math.PI/180) + k.mousePos().y,
+            };
+            this.BuildBullet(player,player.pos,move);
         });
-    }
-    BuildBullet(player,direction) {
+        k.keyDown("shift", () => {
+            this.player_speed = 6;
+        });
+        k.keyRelease("shift", () => {
+            this.player_speed = 1.5;
+        });   
+    }  
+    BuildBullet(player,pos,move) {
         let uid = uuidv4();
-        k.add([
-            rect(4, 4),
-            area(),
-            pos(player.pos),
-            origin("center"),
-            color(0, 0, 1),
+        let bullet = k.add([
+            k.rect(4, 4),
+            k.pos(pos),
+            k.area(),
+            k.color(0, 0, 0),
             "bullet",
             {
-                uid: uid,
-                direction:direction,
+                meta: {
+                    uid: uid,
+                    player_uid: player.meta.uid,
+                    pos:pos,
+                },
             },
         ]);
-        // bullet.collides("structure", (s) => {
-        //     console.log(s)
-        //     // k.destroy(b);
-        //     // k.destroy(s);
-        // });
-        this.websocket.send(JSON.stringify({build_bullet:{uid: uid,player_uid:player.meta.uid,direction:direction}}))
+        bullet.action(() => {
+            bullet.move(move.x,move.y);
+            setTimeout(()=>{k.destroy(bullet)},1000)
+        });
+        bullet.collides("structure", (s) => {
+            k.shake(2);
+            k.destroy(bullet);
+            k.destroy(s);
+        });
+        this.websocket.send(JSON.stringify({build_bullet:{uid: uid,player_uid:player.meta.uid,pos:pos,move:move}}))
+    }
+    AddBullet(bullet) {
+        let addbullet = k.add([
+            k.rect(4, 4),
+            k.pos(bullet.pos),
+            k.area(),
+            k.color(0, 0, 0),
+            "bullet",
+            {
+                meta: {
+                    uid: bullet.uid,
+                    player_uid: bullet.player_uid,
+                    pos:bullet.pos,
+                },
+            },
+        ]);
+        addbullet.action(() => {
+            addbullet.move(bullet.move.x,bullet.move.y);
+            setTimeout(()=>{k.destroy(addbullet)},1000)
+        });
     }
     BuildStructure(pos,player) {
         let uid = uuidv4();
@@ -202,8 +219,8 @@ export class Game{
             k.sprite('steel'),
             k.pos(pos),
             k.area(),
-            k.scale(2),
             k.solid(),
+            k.scale(2),
             "structure",
             {
                 player: player.meta.uid,
@@ -217,8 +234,8 @@ export class Game{
             k.sprite('steel'),
             k.pos(structure.pos),
             k.area(),
-            k.scale(2),
             k.solid(),
+            k.scale(2),
             "structure",
             {
                 player: structure.player,

@@ -3,6 +3,7 @@ import Cookies from 'js-cookie'
 
 export default createStore({
   state: {
+    jwt_secret: "eoSbgkh9Lf-uwaUKI13sz-kjt1W8R0Xv",
     token: Cookies.get('me_person_token') ? Cookies.get('me_person_token') : false,
     user: Cookies.get('me_person') ? JSON.parse(Cookies.get('me_person')) : false,
   },

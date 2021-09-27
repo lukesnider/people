@@ -81,6 +81,10 @@ export class People {
         this.people[data.update_position.uid].position = data.update_position.position;
         this.broadcast(JSON.stringify(data));
       }
+      if(data.save_position) {
+        await PEOPLE_DATA.put(data.save_position.user.email,JSON.stringify(data.save_position.user));
+        return;
+      }
       if(data.build_structure) {
         let structure = {
           uid: data.build_structure.uid,
@@ -88,14 +92,17 @@ export class People {
           pos: data.build_structure.pos,
         };
         this.structures[structure.uid] = structure;
-        this.broadcast(JSON.stringify({add_structure:structure}),structure.player_uid);
+        this.broadcast(JSON.stringify({add_structure:structure}),session.uid);
       }
       if(data.build_bullet) {
         let bullet = {
           uid: data.build_bullet.uid,
-          direction: data.build_bullet.direction,
+          player_uid: data.build_bullet.player_uid,
+          player_uid: data.build_bullet.player_uid,
+          pos: data.build_bullet.pos,
+          move: data.build_bullet.move,
         };
-        this.broadcast(JSON.stringify({add_structure:structure}),structure.player_uid);
+        this.broadcast(JSON.stringify({add_bullet:bullet}),session.uid);
       }
       if(!receivedUserInfo){
         session.name = "" + (data.name || "anonymous");
@@ -124,7 +131,7 @@ export class People {
       let dataStr = JSON.stringify(data);
       this.broadcast(dataStr);
     })
-    let closeOrErrorHandler = evt => {
+    let closeOrErrorHandler = async (evt) => {
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);
       if (session.name) {
@@ -151,7 +158,8 @@ export class People {
       try {
         if(others && session.uid != others) {
           session.webSocket.send(message);
-        }else {
+        }
+        if(!others) {
           session.webSocket.send(message);
         }
         return true;

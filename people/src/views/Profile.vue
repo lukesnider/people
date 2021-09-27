@@ -47,7 +47,6 @@ export default {
   data() {
     return {
       type: "login",
-      jwt_secret: "eoSbgkh9Lf-uwaUKI13sz-kjt1W8R0Xv",
       message: "",
       form:  {
         name: "",
@@ -66,7 +65,7 @@ export default {
   methods: {
     async Login() {
       this.message = "";
-      let token = jwt.sign({ type: "LOGIN",email: this.form.email,password: md5(this.form.password) }, this.jwt_secret);
+      let token = jwt.sign({ type: "LOGIN",email: this.form.email,password: md5(this.form.password) }, this.$store.state.jwt_secret);
       let response = await axios.get('https://people-manager.originalbuilders.workers.dev/?jwt='+token).catch(err => {console.log(err);})
       this.message = response.data.message;
       if(response.data.status == 'LOGGED-IN') {
@@ -78,7 +77,7 @@ export default {
     async Register() {
       this.message = "";
       let password = md5(this.form.password);
-      let token = jwt.sign({ type: "REGISTER",email: this.form.email,password: password,name:this.form.name }, this.jwt_secret);
+      let token = jwt.sign({ type: "REGISTER",email: this.form.email,password: password,name:this.form.name }, this.$store.state.jwt_secret);
       let response = await axios.get('https://people-manager.originalbuilders.workers.dev/?jwt='+token).catch(err => {console.log(err);})
       this.message = response.data.message;
       if(response.data.status == 'LOGGED-IN') {

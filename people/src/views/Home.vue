@@ -11,6 +11,8 @@
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import {Game} from '../game/main.js'
+import axios from 'axios'
+import jwt from 'jsonwebtoken'
 
 export default {
   name: 'Home',
@@ -36,12 +38,28 @@ export default {
     }
   },
   methods: {
+    async LoadPlayer() {
+      this.message = "";
+      let token = jwt.sign({ type: "CHECK" }, this.$store.state.jwt_secret);
+      let response = await axios.get('https://people-manager.originalbuilders.workers.dev/?jwt='+token+'&token='+this.$store.state.token).catch(err => {console.log(err);})
+      if(response.data.status == 'CHECK-SUCCESS') {
+        this.$store.commit('setState',{key:'user',value:JSON.parse(response.data.person)});
+        this.$store.commit('setState',{key:'token',value:response.data.token})
+      }
+    },
   },
   mounted() {
+    this.LoadPlayer();
     const store = useStore()
     this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
     let gameContainer = document.querySelector('#people');
     this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket);
+    // window.onbeforeunload = async function(){
+    //   let user = this.store.$state.user;
+    //   user.position = this.GameObject.GetPlayerPosition();
+    //   await this.websocket.send(JSON.stringify({save_position:{user:user}}))
+    //   return 'Are you sure you want to leave?';
+    // };
   },
   computed: {
     user() {
