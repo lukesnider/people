@@ -8,10 +8,11 @@ export class Game{
         this.width = width;
         this.height = height;
         this.player;
-        this.player_frozen = false;
+        this.player_frozen = true;
         this.players = {};
         this.player_speed = 1.5;
         this.bullet_speed = 1200;
+        this.action_mode = "shoot";
         this.Init();
     }
     async Init() {
@@ -19,32 +20,27 @@ export class Game{
         k = await kaboom({
             global: true,
             root: canvas,
-            width: this.width,
-            height: this.height,
             stretch: true,
             letterbox: true,
-            clearColor: [ 255,255,255 ],
+            learColor: [ 255,255,255 ],
         });
-        k.layers([
-            "ui",
-            "game",
-        ], "game");
         this.LoadSprites();
         this.SetupWebsocket();
-        k.mouseClick((c)=>{
-            this.BuildStructure({x:k.mouseWorldPos().x,y:k.mouseWorldPos().y},this.player);
+        k.mouseClick(()=>{
+            if(this.action_mode == "shoot") {
+                if(!this.player_frozen) this.Shoot();
+            }
+            if(this.action_mode == "build") {
+                if(!this.player_frozen) this.BuildStructure({x:k.mouseWorldPos().x,y:k.mouseWorldPos().y},this.player);
+            }
         });
         k.keyPress("k",()=>{
             this.vue.toggleKD();
         });
-        //Shooting other players
-        // k.collides("person","bullet", (p,b) => {
-        //     if(p.meta.uid != b.meta.player_uid) {
-        //         if(p.meta.uid == this.player.meta.uid){
-        //             this.player_frozen = true;
-        //         }
-        //     }
-        // });
+        let that = this
+        setTimeout(() => {
+            that.player_frozen = false;
+        },1000)
     }
     GetPlayer(uid) {
         //Just testing
@@ -90,6 +86,9 @@ export class Game{
             }
             if(data.kd_update) {
                 this.UpdateKillDeath(data.kd_update);
+            }
+            if(data.destroy_structure) {
+                this.DestroyStructure(data.destroy_structure);
             }
           })
           this.websocket.addEventListener("open", () => {
@@ -177,12 +176,11 @@ export class Game{
         k.keyDown("s", () => {
             this.SendMovement(player,{x:player.pos.x,y: player.pos.y + this.player_speed})
         }); 
-        k.keyPress("space", () => {
-            let move = {
-                x: Math.cos(k.mouseWorldPos().angle()*Math.PI/180) * this.bullet_speed,
-                y: Math.sin(k.mouseWorldPos().angle()*Math.PI/180) * this.bullet_speed,
-            };
-            this.BuildBullet(player,player.pos,move);
+        k.keyPress("q", () => {
+            this.action_mode = "build";
+        });
+        k.keyPress("e", () => {
+            this.action_mode = "shoot";
         });
         k.keyDown("shift", () => {
             this.player_speed = 6;
@@ -191,6 +189,21 @@ export class Game{
             this.player_speed = 1.5;
         });   
     }  
+    Shoot() {
+        let mouse = k.mousePos();
+        let player_pos = k.center();
+
+        let dirX = mouse.x - player_pos.x
+        let dirY = mouse.y - player_pos.y
+        let magnitude = Math.sqrt(dirX*dirX + dirY*dirY)
+        dirX = dirX/magnitude;
+        dirY = dirY/magnitude;
+        let bulletVelocity = {};
+        bulletVelocity.x =  dirX*this.bullet_speed
+        bulletVelocity.y = dirY*this.bullet_speed
+        let move = bulletVelocity
+        this.BuildBullet(this.player,this.player.pos,move);
+    }
     BuildBullet(player,pos,move) {
         if(this.player_frozen) return;
         let uid = uuidv4();
@@ -213,6 +226,7 @@ export class Game{
             setTimeout(()=>{k.destroy(bullet)},1000)
         });
         bullet.collides("structure", (s) => {
+            this.websocket.send(JSON.stringify({destroy_structure:{uid:s.uid}}))
             k.shake(2);
             k.destroy(bullet);
             k.destroy(s);
@@ -279,6 +293,13 @@ export class Game{
                 uid: structure.uid,
             },
         ]);
+    }
+    DestroyStructure(structure) {
+        every((obj) => {
+            if(obj.uid && obj.uid == structure.uid) {
+                k.destroy(obj);
+            }
+        });
     }
     SendMovement(player,pos) {
         if(this.player_frozen) return;

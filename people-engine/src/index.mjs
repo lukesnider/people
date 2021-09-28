@@ -102,6 +102,11 @@ export class People {
         this.broadcast(JSON.stringify({add_structure:structure}),session.uid);
         return;
       }
+      if(data.destroy_structure) {
+        delete this.structures[data.destroy_structure.uid];
+        this.broadcast(JSON.stringify({destroy_structure:data.destroy_structure}),session.uid);
+        return;
+      }
       if(data.build_bullet) {
         let bullet = {
           uid: data.build_bullet.uid,
