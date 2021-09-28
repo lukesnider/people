@@ -32,14 +32,20 @@ export class People {
   constructor(state, env) {
     this.state = state;
     this.people = {};
+    this.kd = {};
     this.structures = {};
     this.state.blockConcurrencyWhile(async () => {
         let stored_structures= await this.state.storage.get("structures");
         this.structures = stored_structures || {};
+
         let stored_sessions= await this.state.storage.get("sessions");
         this.sessions = stored_sessions || [];
+        
         let stored_people= await this.state.storage.get("people");
         this.people = stored_people || {};
+
+        let stored_kd= await this.state.storage.get("kd");
+        this.kd = stored_kd || {};
     })
   }
   // Handle HTTP requests from clients.
@@ -80,11 +86,12 @@ export class People {
       if(data.update_position) {
         this.people[data.update_position.uid].position = data.update_position.position;
         this.broadcast(JSON.stringify(data));
-      }
-      if(data.save_position) {
-        await PEOPLE_DATA.put(data.save_position.user.email,JSON.stringify(data.save_position.user));
         return;
       }
+      // if(data.save_position) {
+      //   await PEOPLE_DATA.put(data.save_position.user.email,JSON.stringify(data.save_position.user));
+      //   return;
+      // }
       if(data.build_structure) {
         let structure = {
           uid: data.build_structure.uid,
@@ -93,6 +100,7 @@ export class People {
         };
         this.structures[structure.uid] = structure;
         this.broadcast(JSON.stringify({add_structure:structure}),session.uid);
+        return;
       }
       if(data.build_bullet) {
         let bullet = {
@@ -103,6 +111,36 @@ export class People {
           move: data.build_bullet.move,
         };
         this.broadcast(JSON.stringify({add_bullet:bullet}),session.uid);
+        return;
+      }
+      if(data.player_hit) {
+        let shooter = data.player_hit.shooter;
+        let hit = data.player_hit.hit;
+        let kill =  {
+          timestampe: Date.now(),
+          player: hit.uid,
+        }
+        if(!this.kd[shooter.uid]) {
+          this.kd[shooter.uid] = {
+            name: shooter.name,
+            kills: [kill],
+            deaths: [],
+          };
+        }else{
+          this.kd[shooter.uid].kills.push(kill)
+        }
+        if(!this.kd[hit.uid]) {
+          this.kd[hit.uid] = {
+            name: hit.name,
+            kills: [],
+            deaths: [kill],
+          };
+        }else{
+          this.kd[hit.uid].deaths.push(kill)
+        }
+        this.broadcast(JSON.stringify({kill:data.player_hit}));
+        this.broadcast(JSON.stringify({kd_update:this.kd}));
+        return;
       }
       if(!receivedUserInfo){
         session.name = "" + (data.name || "anonymous");
@@ -119,6 +157,7 @@ export class People {
         this.broadcast(JSON.stringify({joined: data}));
         webSocket.send(JSON.stringify({people: this.people}));
         webSocket.send(JSON.stringify({structures: this.structures}));
+        webSocket.send(JSON.stringify({kd_update: this.kd}));
         receivedUserInfo = true;
         return new Response(null, {
           status: 101,
@@ -135,6 +174,7 @@ export class People {
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);
       if (session.name) {
+        this.kd[session.uid].name = session.name;
         this.broadcast(JSON.stringify({quit: session}));
         delete this.people[session.uid];
       }
