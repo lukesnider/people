@@ -4,6 +4,15 @@
       <button @click="show.building_menu = false">Close</button>
         Building Menu
     </div>
+    <div v-if="show.kill_death" class="overflow-y-scroll	 building-menu fixed top-0 left-0 w-1/2 h-1/4 z-50 bg-white border-2 p-6">
+      <!--<button @click="show.kill_death = false">Close</button>-->
+        <div class="flex flex-col p-2">
+          <div v-for="(stat,i) in kd" class="flex my-2">
+            <p class="mr-2" ><strong>{{stat.name}} : </strong></p>
+            Kills: {{stat.kills.length}} - Deaths: {{stat.deaths.length}}
+          </div>
+        </div>
+    </div>
   </div>
 </template>
 
@@ -18,8 +27,10 @@ export default {
   name: 'Home',
   data() {
     return {
+      kd: false,
       show: {
         building_menu: false,
+        kill_death: false,
       },
       websocket:false,
       GameObject: false,
@@ -38,6 +49,9 @@ export default {
     }
   },
   methods: {
+    toggleKD() {
+      this.show.kill_death = !this.show.kill_death;
+    },
     async LoadPlayer() {
       this.message = "";
       let token = jwt.sign({ type: "CHECK" }, this.$store.state.jwt_secret);
@@ -53,7 +67,7 @@ export default {
     const store = useStore()
     this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
     let gameContainer = document.querySelector('#people');
-    this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket);
+    this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket,this);
     // window.onbeforeunload = async function(){
     //   let user = this.store.$state.user;
     //   user.position = this.GameObject.GetPlayerPosition();

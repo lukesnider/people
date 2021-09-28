@@ -1,12 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 let k;
 export class Game{
-    constructor(width,height,user,websocket) {
+    constructor(width,height,user,websocket,vue) {
+        this.vue = vue;
         this.websocket = websocket;
         this.user = user;
         this.width = width;
         this.height = height;
         this.player;
+        this.player_frozen = false;
         this.players = {};
         this.player_speed = 1.5;
         this.bullet_speed = 1200;
@@ -23,19 +25,29 @@ export class Game{
             letterbox: true,
             clearColor: [ 255,255,255 ],
         });
+        k.layers([
+            "ui",
+            "game",
+        ], "game");
         this.LoadSprites();
         this.SetupWebsocket();
         k.mouseClick((c)=>{
             this.BuildStructure({x:k.mouseWorldPos().x,y:k.mouseWorldPos().y},this.player);
         });
+        k.keyPress("k",()=>{
+            this.vue.toggleKD();
+        });
         //Shooting other players
         // k.collides("person","bullet", (p,b) => {
         //     if(p.meta.uid != b.meta.player_uid) {
-        //         console.log(p.meta,b.meta)
-        //         // k.destroy(b);
-        //         // k.destroy(p);
+        //         if(p.meta.uid == this.player.meta.uid){
+        //             this.player_frozen = true;
+        //         }
         //     }
         // });
+    }
+    GetPlayer(uid) {
+        return this.players.uid;
     }
     GetPlayerPosition() {
         return this.player.pos;
@@ -57,9 +69,6 @@ export class Game{
               for(let uid in data.structures) {
                 this.AddStructure(data.structures[uid]);
               }
-            //   k.every((obj) => {
-            //      console.log(obj.pos)
-            // })
             }
             if(data.quit) {
               if(this.players[data.quit.uid]) {
@@ -75,10 +84,34 @@ export class Game{
             if(data.add_bullet) {
                 this.AddBullet(data.add_bullet);
             }
+            if(data.kill) {
+                this.ProcessKill(data.kill);
+            }
+            if(data.kd_update) {
+                this.UpdateKillDeath(data.kd_update);
+            }
           })
           this.websocket.addEventListener("open", () => {
               this.websocket.send(JSON.stringify(this.user))
           })
+    }
+    UpdateKillDeath(kd) {
+        this.vue.kd = kd;
+    }
+    ProcessKill(data) {
+        let player_last_position = this.players[data.hit.uid].pos;
+        let kill_text = k.add([
+            text("DEAD",{
+                size: 12,
+                width: 200
+            }),
+            color(rgb(0, 0, 0,1)),
+            pos(player_last_position),
+            wait(2,() => {
+                destroy(kill_text);
+            }),
+        ]);
+        this.RemovePlayer(data.hit.uid);
     }
     LoadSprites() {
         k.loadSprite('bullet','bullet.png');
@@ -91,7 +124,6 @@ export class Game{
                 k.sprite('robot'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
-                // k.solid(),
                 "person",
                 {meta: player_data}
             ]);
@@ -102,7 +134,6 @@ export class Game{
                 k.sprite('robot'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
-                // k.solid(),
                 "person",
                 {meta: player_data}
             ]);
@@ -125,6 +156,7 @@ export class Game{
     RemovePlayer(player_data) {
         k.destroy(this.players[player_data].player_name_text);
         k.destroy(this.players[player_data]);
+        delete this.players[player_data];
     }
     PlayerMovement(player) {
         player.action(() => {
@@ -133,29 +165,21 @@ export class Game{
             player.player_name_text.pos = this.ParserPlayerTextPos(player.pos);
         });
         k.keyDown("a", () => {
-            player.pos.x -= this.player_speed;
-            this.SendMovement(player)
+            this.SendMovement(player,{x:player.pos.x - this.player_speed,y: player.pos.y})
         });    
         k.keyDown("d", () => {
-            player.pos.x += this.player_speed;
-            this.SendMovement(player)
+            this.SendMovement(player,{x:player.pos.x + this.player_speed,y: player.pos.y})
         });    
         k.keyDown("w", () => {
-            player.pos.y -= this.player_speed;
-            this.SendMovement(player)
+            this.SendMovement(player,{x:player.pos.x,y: player.pos.y - this.player_speed})
         });    
         k.keyDown("s", () => {
-            player.pos.y += this.player_speed;
-            this.SendMovement(player)
-        });
+            this.SendMovement(player,{x:player.pos.x,y: player.pos.y + this.player_speed})
+        }); 
         k.keyPress("space", () => {
-            //console.log(player.width,player.height)
-            // console.log(k.mousePos().angle())
-            //let distance = Math.hypot(k.mousePos().x-player.pos.x, k.mousePos().y-player.pos.y);
-            // console.log(distance)
             let move = {
-                x: this.bullet_speed*Math.cos(k.mouseWorldPos().angle()),//Math.cos(k.mousePos().angle()*Math.PI/180) + k.mousePos().x,
-                y: this.bullet_speed*Math.sin(k.mouseWorldPos().angle()),//Math.sin(k.mousePos().angle()*Math.PI/180) + k.mousePos().y,
+                x: Math.cos(k.mouseWorldPos().angle()*Math.PI/180) * this.bullet_speed,
+                y: Math.sin(k.mouseWorldPos().angle()*Math.PI/180) * this.bullet_speed,
             };
             this.BuildBullet(player,player.pos,move);
         });
@@ -167,6 +191,7 @@ export class Game{
         });   
     }  
     BuildBullet(player,pos,move) {
+        if(this.player_frozen) return;
         let uid = uuidv4();
         let bullet = k.add([
             k.rect(4, 4),
@@ -191,6 +216,12 @@ export class Game{
             k.destroy(bullet);
             k.destroy(s);
         });
+        bullet.collides("person", (p) => {
+            if(p.meta.uid != this.player.meta.uid) {
+                k.destroy(bullet);
+                this.websocket.send(JSON.stringify({player_hit:{shooter: this.player.meta,hit:p.meta}}))
+            }
+        });
         this.websocket.send(JSON.stringify({build_bullet:{uid: uid,player_uid:player.meta.uid,pos:pos,move:move}}))
     }
     AddBullet(bullet) {
@@ -212,8 +243,13 @@ export class Game{
             addbullet.move(bullet.move.x,bullet.move.y);
             setTimeout(()=>{k.destroy(addbullet)},1000)
         });
+        addbullet.collides("person", (p) => {
+            k.destroy(addbullet);
+            this.player_frozen = true;
+        });
     }
     BuildStructure(pos,player) {
+        if(this.player_frozen) return;
         let uid = uuidv4();
         k.add([
             k.sprite('steel'),
@@ -243,14 +279,17 @@ export class Game{
             },
         ]);
     }
-    SendMovement(player) {
+    SendMovement(player,pos) {
+        if(this.player_frozen) return;
+        player.pos.x = pos.x;
+        player.pos.y = pos.y;
         this.websocket.send(JSON.stringify({update_position:{uid:this.user.uid,position:player.pos}}))
     }
     UpdatePlayerPosition(data) {
         if(data.update_position.uid != this.user.uid) {
-            this.players[data.update_position.uid].pos = data.update_position.position;
+            this.players[data.update_position.uid].pos.x = data.update_position.position.x;
+            this.players[data.update_position.uid].pos.y = data.update_position.position.y;
             this.players[data.update_position.uid].player_name_text.pos = this.ParserPlayerTextPos(data.update_position.position);
         }
-        // people.value[data.update_position.uid].position = data.update_position.position;
     }
 }
