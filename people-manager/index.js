@@ -42,6 +42,16 @@ async function handleRequest(request) {
     case "LOGIN":
       response_data = await handleLogin(data,response_data);
       break;
+    case "CHECK":
+      if(!url.searchParams.get("token")) {
+        return new Response("Access Denied", {
+          headers: corsHeaders,
+          status: 403,
+        })
+      }
+      data.token = url.searchParams.get("token");
+      response_data = await handleCheck(data,response_data);
+      break;
     case "UPDATE":
       if(!url.searchParams.get("token")) {
         return new Response("Access Denied", {
@@ -113,7 +123,29 @@ async function handleLogin(data,response) {
   }
   return response;
 }
-
+async function handleCheck(data,response) {
+  response.status = "INCOMPLETE";
+  try {
+    if(!data.token){
+      response.status = "TOKEN-VALIDATION";
+      response.message = "Missing required authentication token";
+      return response;
+    }
+    let verify_token = await jwt.verify(data.token,USER_PW_SECRET)
+    if(!verify_token) {
+      response.status = "TOKEN-VALIDATION";
+      response.message = verify_token.message;
+      return response;
+    }
+    response.person =  await PEOPLE.get(`${verify_token.email}`);
+    response.token = await jwt.sign({email:verify_token.email,exp:Math.floor(Date.now() / 1000) + (60 * 120)}, USER_PW_SECRET);
+    response.status = "CHECK-SUCCESS";
+    response.message = "Successfully checked."
+  } catch(err) {
+    response.message = err.message
+  }
+  return response;
+}
 async function handleRegister(data,response) {
   //var secret = await ADMIN.get(`login-${data.email}`)
   if(!data.name || data.name.trim() == "") {
