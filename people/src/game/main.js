@@ -47,6 +47,7 @@ export class Game{
         // });
     }
     GetPlayer(uid) {
+        //Just testing
         return this.players.uid;
     }
     GetPlayerPosition() {
