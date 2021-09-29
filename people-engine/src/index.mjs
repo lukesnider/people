@@ -33,13 +33,16 @@ export class People {
     this.state = state;
     this.sessions =  [];
     this.people = {};
-    this.kd = {};
+    this.positions = {};
+    this.stats = {};
     this.structures = {};
     this.state.blockConcurrencyWhile(async () => {
         let stored_structures= await this.state.storage.get("structures");
         this.structures = stored_structures || {};
-        let stored_kd= await this.state.storage.get("kd");
-        this.kd = stored_kd || {};
+        let stored_stats= await this.state.storage.get("stats");
+        this.stats = stored_stats || {};
+        let stored_positions= await this.state.storage.get("positions");
+        this.positions = stored_positions || [];
     })
   }
   // Handle HTTP requests from clients.
@@ -89,13 +92,17 @@ export class People {
           pos: data.build_structure.pos,
         };
         this.structures[structure.uid] = structure;
+        this.stats[data.build_structure.player_uid].structures.built = this.stats[data.build_structure.player_uid].structures.built + 1;
         this.broadcast(JSON.stringify({add_structure:structure}),session.uid);
+        this.broadcast(JSON.stringify({stats_update:this.stats}));
         await this.state.storage.put("structures", this.structures);
         return;
       }
       if(data.destroy_structure) {
         delete this.structures[data.destroy_structure.uid];
+        this.stats[data.destroy_structure.player_uid].structures.destroyed = this.stats[data.destroy_structure.player_uid].structures.destroyed + 1;
         this.broadcast(JSON.stringify({destroy_structure:data.destroy_structure}),session.uid);
+        this.broadcast(JSON.stringify({stats_update:this.stats}));
         await this.state.storage.put("structures", this.structures);
         return;
       }
@@ -117,45 +124,39 @@ export class People {
           timestampe: Date.now(),
           player: hit.uid,
         }
-        if(!this.kd[shooter.uid]) {
-          this.kd[shooter.uid] = {
-            name: shooter.name,
-            kills: [kill],
-            deaths: [],
-          };
-        }else{
-          this.kd[shooter.uid].kills.push(kill)
-        }
-        if(!this.kd[hit.uid]) {
-          this.kd[hit.uid] = {
-            name: hit.name,
-            kills: [],
-            deaths: [kill],
-          };
-        }else{
-          this.kd[hit.uid].deaths.push(kill)
-        }
+        this.stats[shooter.uid].kills.push(kill)
+        this.stats[hit.uid].deaths.push(kill)
         this.broadcast(JSON.stringify({kill:data.player_hit}));
-        this.broadcast(JSON.stringify({kd_update:this.kd}));
-        await this.state.storage.put("kd", this.kd);
+        this.broadcast(JSON.stringify({stats_update:this.stats}));
+        await this.state.storage.put("stats", this.stats);
         return;
       }
       if(!receivedUserInfo){
         session.name = "" + (data.name || "anonymous");
         session.uid = data.uid;
-        if(!data.position) data.position = {x:50,y:50};
-        // if(!data.position) {
-        //   if(this.people[uid] && this.people[uid].position) {
-        //     data.position = this.people[uid].position;
-        //   }else{
-        //     data.position = {x:50,y:50};
-        //   }
-        // }
+        if(!this.positions[data.uid]) {
+          this.positions[data.uid] = {
+            x: Math.random() * (500 - -500) + -500,
+            y: Math.random() * (500 - -500) + -500,
+          }
+        }
+        if(!this.stats[data.uid]) {
+          this.stats[data.uid] = {
+            name: data.name,
+            structures: {
+              built: 0,
+              destroyed: 0,
+            },
+            kills: [],
+            deaths: [],
+          };
+        }
+        await this.state.storage.put("stats", this.stats);
         this.people[data.uid] = data;
         this.broadcast(JSON.stringify({joined: data}));
         webSocket.send(JSON.stringify({people: this.people}));
         webSocket.send(JSON.stringify({structures: this.structures}));
-        webSocket.send(JSON.stringify({kd_update: this.kd}));
+        webSocket.send(JSON.stringify({stats_update: this.stats}));
         receivedUserInfo = true;
         return new Response(null, {
           status: 101,
@@ -170,11 +171,12 @@ export class People {
     })
     let closeOrErrorHandler = async (evt) => {
       await this.state.storage.put("structures", this.structures);
-      await this.state.storage.put("kd", this.kd);
+      await this.state.storage.put("stats", this.stats);
+      await this.state.storage.put("positions", this.positions);
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);
       if (session.name) {
-        this.kd[session.uid].name = session.name;
+        this.stats[session.uid].name = session.name;
         this.broadcast(JSON.stringify({quit: session}));
         delete this.people[session.uid];
       }

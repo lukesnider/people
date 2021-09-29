@@ -40,10 +40,15 @@ export class Game{
             }
         });
         k.keyPress("k",()=>{
-            this.vue.toggleKD();
+            this.vue.toggleStats();
+        });
+        k.keyPress("l",()=>{
+            this.vue.toggleGameLegend();
         });
         let that = this
+        //that.TempText('Press "L" for game legend.');
         setTimeout(() => {
+            that.vue.toggleGameLegend();
             that.TempText("You're ready to go!");
             that.player_frozen = false;
             k.focus();
@@ -101,8 +106,8 @@ export class Game{
             if(data.kill) {
                 this.ProcessKill(data.kill);
             }
-            if(data.kd_update) {
-                this.UpdateKillDeath(data.kd_update);
+            if(data.stats_update) {
+                this.UpdateKillDeath(data.stats_update);
             }
             if(data.destroy_structure) {
                 this.DestroyStructure(data.destroy_structure);
@@ -116,8 +121,8 @@ export class Game{
               console.log(err)
           })
     }
-    UpdateKillDeath(kd) {
-        this.vue.kd = kd;
+    UpdateKillDeath(stats) {
+        this.vue.stats = stats;
     }
     ProcessKill(data) {
         if(!this.players[data.hit.uid]) return
@@ -147,7 +152,7 @@ export class Game{
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
                 "person",
-                {iSafe: safe,meta: player_data}
+                {isSafe: safe,meta: player_data}
             ]);
             this.player = this.players[player_data.uid];
             this.PlayerMovement(this.player);
@@ -157,7 +162,7 @@ export class Game{
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
                 "person",
-                {iSafe: safe,meta: player_data}
+                {isSafe: safe,meta: player_data}
             ]);
         }
         this.players[player_data.uid].player_name_text = k.add([
@@ -261,7 +266,7 @@ export class Game{
             setTimeout(()=>{k.destroy(bullet)},1000)
         });
         bullet.collides("structure", (s) => {
-            this.websocket.send(JSON.stringify({destroy_structure:{uid:s.uid}}))
+            this.websocket.send(JSON.stringify({destroy_structure:{uid:s.uid,player_uid: bullet.meta.player_uid}}))
             k.shake(2);
             k.destroy(bullet);
             k.destroy(s);
@@ -292,6 +297,9 @@ export class Game{
         addbullet.action(() => {
             addbullet.move(bullet.move.x,bullet.move.y);
             setTimeout(()=>{k.destroy(addbullet)},1000)
+        });
+        addbullet.collides("structure", (s) => {
+            k.destroy(addbullet);
         });
         addbullet.collides("person", (p) => {
             k.destroy(addbullet);
