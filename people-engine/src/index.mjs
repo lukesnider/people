@@ -82,6 +82,7 @@ export class People {
       let data = JSON.parse(msg.data);
       if(data.update_position) {
         this.people[data.update_position.uid].position = data.update_position.position;
+        this.positions[data.update_position.uid] = data.update_position.position;
         this.broadcast(JSON.stringify(data));
         return;
       }
@@ -128,6 +129,10 @@ export class People {
         this.stats[hit.uid].deaths.push(kill)
         this.broadcast(JSON.stringify({kill:data.player_hit}));
         this.broadcast(JSON.stringify({stats_update:this.stats}));
+        this.positions[hit.uid] = {
+          x: Math.random() * (500 - -500) + -500,
+          y: Math.random() * (500 - -500) + -500,
+        }
         await this.state.storage.put("stats", this.stats);
         return;
       }
@@ -151,6 +156,7 @@ export class People {
             deaths: [],
           };
         }
+        data.position = this.positions[data.uid];
         await this.state.storage.put("stats", this.stats);
         this.people[data.uid] = data;
         this.broadcast(JSON.stringify({joined: data}));

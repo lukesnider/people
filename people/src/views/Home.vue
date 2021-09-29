@@ -105,12 +105,6 @@ export default {
     this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token);
     let gameContainer = document.querySelector('#people');
     this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket,this);
-    // window.onbeforeunload = async function(){
-    //   let user = this.store.$state.user;
-    //   user.position = this.GameObject.GetPlayerPosition();
-    //   await this.websocket.send(JSON.stringify({save_position:{user:user}}))
-    //   return 'Are you sure you want to leave?';
-    // };
   },
   computed: {
     user() {
