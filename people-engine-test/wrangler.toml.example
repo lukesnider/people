@@ -1,0 +1,26 @@
+name = "people-engine-test"
+type = "javascript"
+workers_dev = true
+account_id = ""
+route = ""
+zone_id = ""
+compatibility_date = "2021-09-22"
+kv_namespaces = [ 
+  { binding = "PEOPLE_DATA", id = "", preview_id = "" }
+]
+
+[build.upload]
+dir = "src"
+format = "modules"
+main = "./index.mjs"
+
+[vars]
+JWT_SECRET = ""
+USER_PW_SECRET = ""
+
+[durable_objects]
+bindings = [{name = "PEOPLE", class_name = "People"}]
+
+[[migrations]]
+tag = "people-engine-test-v1" # Should be unique for each entry
+new_classes = ["People"]

@@ -7,9 +7,10 @@ export class Game{
         this.user = user;
         this.width = width;
         this.height = height;
-        this.player;
+        this.player = false;
         this.player_frozen = true;
         this.players = {};
+        this.players_loaded = false;
         this.player_speed = 1.5;
         this.bullet_speed = 1200;
         this.load_timeout = 3000;
@@ -119,6 +120,7 @@ export class Game{
         this.vue.kd = kd;
     }
     ProcessKill(data) {
+        if(!this.players[data.hit.uid]) return
         let player_last_position = this.players[data.hit.uid].pos;
         let kill_text = k.add([
             text("DEAD",{
@@ -181,9 +183,14 @@ export class Game{
         }
     }
     RemovePlayer(player_data) {
+        if(!this.players[player_data]) return;
         k.destroy(this.players[player_data].player_name_text);
         k.destroy(this.players[player_data]);
         delete this.players[player_data];
+        if(this.player.meta.uid == player_data) {
+            delete this.player;
+            this.player_frozen = true;
+        }
     }
     PlayerMovement(player) {
         player.action(() => {
@@ -219,7 +226,6 @@ export class Game{
     Shoot() {
         let mouse = k.mousePos();
         let player_pos = k.center();
-
         let dirX = mouse.x - player_pos.x
         let dirY = mouse.y - player_pos.y
         let magnitude = Math.sqrt(dirX*dirX + dirY*dirY)
@@ -335,6 +341,7 @@ export class Game{
         this.websocket.send(JSON.stringify({update_position:{uid:this.user.uid,position:player.pos}}))
     }
     UpdatePlayerPosition(data) {
+        if(!this.players[data.update_position.uid]) return;
         if(data.update_position.uid != this.user.uid) {
             this.players[data.update_position.uid].pos.x = data.update_position.position.x;
             this.players[data.update_position.uid].pos.y = data.update_position.position.y;
