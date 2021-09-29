@@ -169,10 +169,12 @@ export class Game{
             k.pos(this.ParserPlayerTextPos(this.players[player_data.uid].pos)),
         ]);
         if(safe) {
-            this.players[player_data.uid].player_name_text.color = rgb(52, 193, 109,1);
+            if(this.players[player_data.uid]) this.players[player_data.uid].player_name_text.color = rgb(52, 193, 109,1);
             k.wait(8,() => {
-                this.players[player_data.uid].player_name_text.color = rgb(0, 0, 0,1);
-                this.players[player_data.uid].isSafe = false;
+                if(this.players[player_data.uid]) {
+                    this.players[player_data.uid].player_name_text.color = rgb(0, 0, 0,1);
+                    this.players[player_data.uid].isSafe = false;
+                }
             })
         }
     }
