@@ -14,6 +14,7 @@ export class Game{
         this.bullet_speed = 1200;
         this.load_timeout = 3000;
         this.action_mode = "shoot";
+        this.player_safe = true;
         this.Init();
     }
     async Init() {
@@ -27,6 +28,8 @@ export class Game{
         });
         this.LoadSprites();
         this.SetupWebsocket();
+    }
+    Start() {
         k.mouseClick(()=>{
             if(this.action_mode == "shoot") {
                 if(!this.player_frozen) this.Shoot();
@@ -40,7 +43,7 @@ export class Game{
         });
         let that = this
         setTimeout(() => {
-            this.TempText("You're ready to go!");
+            that.TempText("You're ready to go!");
             that.player_frozen = false;
             k.focus();
         },this.load_timeout)
@@ -66,7 +69,7 @@ export class Game{
         this.websocket.addEventListener("message", (event) => {
             let data = JSON.parse(event.data);
             if(data.joined) {
-              this.LoadPlayer(data.joined);
+              this.LoadPlayer(data.joined,true);
             }
             if(data.people) {
               for(let uid in data.people) {
@@ -106,6 +109,10 @@ export class Game{
           })
           this.websocket.addEventListener("open", () => {
               this.websocket.send(JSON.stringify(this.user))
+              this.Start()
+          })
+          this.websocket.addEventListener("error", (err) => {
+              console.log(err)
           })
     }
     UpdateKillDeath(kd) {
@@ -131,14 +138,14 @@ export class Game{
         k.loadSprite('steel','steel.png');
         k.loadSprite('robot','robot.png');
     }
-    LoadPlayer(player_data) {
+    LoadPlayer(player_data,safe = false) {
         if(player_data.uid == this.user.uid) {
             this.players[player_data.uid] = k.add([
                 k.sprite('robot'),
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
                 "person",
-                {meta: player_data}
+                {iSafe: safe,meta: player_data}
             ]);
             this.player = this.players[player_data.uid];
             this.PlayerMovement(this.player);
@@ -148,7 +155,7 @@ export class Game{
                 k.pos(player_data.position.x,player_data.position.y),
                 k.area(),
                 "person",
-                {meta: player_data}
+                {iSafe: safe,meta: player_data}
             ]);
         }
         this.players[player_data.uid].player_name_text = k.add([
@@ -159,6 +166,13 @@ export class Game{
             k.color(rgb(0, 0, 0,1)),
             k.pos(this.ParserPlayerTextPos(this.players[player_data.uid].pos)),
         ]);
+        if(safe) {
+            this.players[player_data.uid].player_name_text.color = rgb(52, 193, 109,1);
+            k.wait(8,() => {
+                this.players[player_data.uid].player_name_text.color = rgb(0, 0, 0,1);
+                this.players[player_data.uid].isSafe = false;
+            })
+        }
     }
     ParserPlayerTextPos(position){
         return {
@@ -245,7 +259,7 @@ export class Game{
             k.destroy(s);
         });
         bullet.collides("person", (p) => {
-            if(p.meta.uid != this.player.meta.uid) {
+            if(p.meta.uid != this.player.meta.uid && !p.isSafe) {
                 k.destroy(bullet);
                 this.websocket.send(JSON.stringify({player_hit:{shooter: this.player.meta,hit:p.meta}}))
             }

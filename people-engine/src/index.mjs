@@ -31,16 +31,13 @@ async function handleRequest(request, env) {
 export class People {
   constructor(state, env) {
     this.state = state;
+    this.sessions =  [];
     this.people = {};
     this.kd = {};
     this.structures = {};
     this.state.blockConcurrencyWhile(async () => {
         let stored_structures= await this.state.storage.get("structures");
         this.structures = stored_structures || {};
-        // let stored_sessions= await this.state.storage.get("sessions");
-        // this.sessions = stored_sessions || [];
-        // let stored_people= await this.state.storage.get("people");
-        // this.people = stored_people || {};
         let stored_kd= await this.state.storage.get("kd");
         this.kd = stored_kd || {};
     })
@@ -85,10 +82,6 @@ export class People {
         this.broadcast(JSON.stringify(data));
         return;
       }
-      // if(data.save_position) {
-      //   await PEOPLE_DATA.put(data.save_position.user.email,JSON.stringify(data.save_position.user));
-      //   return;
-      // }
       if(data.build_structure) {
         let structure = {
           uid: data.build_structure.uid,
@@ -174,8 +167,6 @@ export class People {
     })
     let closeOrErrorHandler = async (evt) => {
       await this.state.storage.put("structures", this.value);
-      //await this.state.storage.put("sessions", this.value);
-      //await this.state.storage.put("people", this.value);
       await this.state.storage.put("kd", this.value);
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);

@@ -65,7 +65,7 @@ export default {
   mounted() {
     this.LoadPlayer();
     const store = useStore()
-    this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token)
+    this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token);
     let gameContainer = document.querySelector('#people');
     this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket,this);
     // window.onbeforeunload = async function(){
