@@ -293,7 +293,6 @@ export class Game{
         });
         addbullet.collides("person", (p) => {
             k.destroy(addbullet);
-            this.player_frozen = true;
         });
     }
     BuildStructure(pos,player) {

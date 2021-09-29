@@ -90,11 +90,13 @@ export class People {
         };
         this.structures[structure.uid] = structure;
         this.broadcast(JSON.stringify({add_structure:structure}),session.uid);
+        await this.state.storage.put("structures", this.structures);
         return;
       }
       if(data.destroy_structure) {
         delete this.structures[data.destroy_structure.uid];
         this.broadcast(JSON.stringify({destroy_structure:data.destroy_structure}),session.uid);
+        await this.state.storage.put("structures", this.structures);
         return;
       }
       if(data.build_bullet) {
@@ -135,6 +137,7 @@ export class People {
         }
         this.broadcast(JSON.stringify({kill:data.player_hit}));
         this.broadcast(JSON.stringify({kd_update:this.kd}));
+        await this.state.storage.put("kd", this.kd);
         return;
       }
       if(!receivedUserInfo){
@@ -166,8 +169,8 @@ export class People {
       this.broadcast(dataStr);
     })
     let closeOrErrorHandler = async (evt) => {
-      await this.state.storage.put("structures", this.value);
-      await this.state.storage.put("kd", this.value);
+      await this.state.storage.put("structures", this.structures);
+      await this.state.storage.put("kd", this.kd);
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);
       if (session.name) {
