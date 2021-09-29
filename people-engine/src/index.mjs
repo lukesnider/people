@@ -37,13 +37,10 @@ export class People {
     this.state.blockConcurrencyWhile(async () => {
         let stored_structures= await this.state.storage.get("structures");
         this.structures = stored_structures || {};
-
-        let stored_sessions= await this.state.storage.get("sessions");
-        this.sessions = stored_sessions || [];
-        
-        let stored_people= await this.state.storage.get("people");
-        this.people = stored_people || {};
-
+        // let stored_sessions= await this.state.storage.get("sessions");
+        // this.sessions = stored_sessions || [];
+        // let stored_people= await this.state.storage.get("people");
+        // this.people = stored_people || {};
         let stored_kd= await this.state.storage.get("kd");
         this.kd = stored_kd || {};
     })
@@ -176,6 +173,10 @@ export class People {
       this.broadcast(dataStr);
     })
     let closeOrErrorHandler = async (evt) => {
+      await this.state.storage.put("structures", this.value);
+      //await this.state.storage.put("sessions", this.value);
+      //await this.state.storage.put("people", this.value);
+      await this.state.storage.put("kd", this.value);
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);
       if (session.name) {
