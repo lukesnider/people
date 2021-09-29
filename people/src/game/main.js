@@ -272,7 +272,7 @@ export class Game{
             k.destroy(s);
         });
         bullet.collides("person", (p) => {
-            if(p.meta.uid != this.player.meta.uid && !p.isSafe) {
+            if(p && p.meta.uid != this.player.meta.uid && !p.isSafe) {
                 k.destroy(bullet);
                 this.websocket.send(JSON.stringify({player_hit:{shooter: this.player.meta,hit:p.meta}}))
             }
