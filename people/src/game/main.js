@@ -12,6 +12,7 @@ export class Game{
         this.players = {};
         this.player_speed = 1.5;
         this.bullet_speed = 1200;
+        this.load_timeout = 3000;
         this.action_mode = "shoot";
         this.Init();
     }
@@ -22,7 +23,7 @@ export class Game{
             root: canvas,
             stretch: true,
             letterbox: true,
-            learColor: [ 255,255,255 ],
+            background: [ 255, 255, 255, ],
         });
         this.LoadSprites();
         this.SetupWebsocket();
@@ -39,12 +40,24 @@ export class Game{
         });
         let that = this
         setTimeout(() => {
+            this.TempText("You're ready to go!");
             that.player_frozen = false;
-        },1000)
+            k.focus();
+        },this.load_timeout)
     }
-    GetPlayer(uid) {
-        //Just testing
-        return this.players.uid;
+    TempText(text) {
+        let temp_text = k.add([
+            k.text(text,{
+                size: 10,
+                width: 200
+            }),
+            k.z(50),
+            k.color(rgb(0, 0, 0,1)),
+            k.pos({x:this.player.pos.x,y:this.player.pos.y-100}),
+            k.wait(.5,() => {
+                k.destroy(temp_text);
+            }),
+        ]);
     }
     GetPlayerPosition() {
         return this.player.pos;
