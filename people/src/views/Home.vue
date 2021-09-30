@@ -123,6 +123,9 @@ export default {
       this.messages.push(message);
     },
     SendMessage() {
+      if(!this.compose_message || this.compose_message.trim() == "") {
+        return;
+      }
       let uid = uuidv4();
       let message = {
         uid: uid,
@@ -134,7 +137,6 @@ export default {
       this.compose_message = "";
       this.websocket.send(JSON.stringify({chat_message:message}));
       let that = this;
-      console.log(this.$refs)
       this.$nextTick(()=>{
         that.$refs["chat-messages"].scrollTop = that.$refs["chat-messages"].scrollHeight;
       })
@@ -177,7 +179,7 @@ export default {
   mounted() {
     this.LoadPlayer();
     const store = useStore()
-    this.websocket = new WebSocket("wss://people-engine-test.originalbuilders.workers.dev/?token="+store.state.token);
+    this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token);
     let gameContainer = document.querySelector('#people');
     this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket,this);
     let that = this;

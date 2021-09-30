@@ -174,9 +174,44 @@ export class Game{
                 destroy(kill_text);
             }),
         ]);
+        if(this.players[data.hit.uid] && this.players[data.shooter.uid]) {
+            if(this.user.uid == data.hit.uid) this.KillText("You were killed by "+data.shooter.name,player_last_position);
+            if(this.user.uid == data.shooter.uid) this.KillText("You killed "+data.hit.name,this.players[data.shooter.uid].pos,this.players[data.shooter.uid]);
+        }
         this.RemovePlayer(data.hit.uid);
         if(data.hit.uid == this.user.uid) {
             this.ShowRespawn(player_last_position);
+        }
+    }
+    KillText(text,position,player=false) {
+        if(player){
+            let kill_text = k.add([
+                k.text(text,{
+                    size: 20,
+                    width: 200
+                }),
+                k.z(50),
+                pos({x:position.x,y:position.y}),
+                k.color(rgb(0, 0, 0,1)),
+                follow(player,{x:position.x,y:position.y-70}),
+                k.wait(.5,() => {
+                    k.destroy(kill_text);
+                }),
+            ]);
+
+        }else{
+            let kill_text = k.add([
+                k.text(text,{
+                    size: 20,
+                    width: 200
+                }),
+                k.z(50),
+                pos({x:position.x,y:position.y+70}),
+                k.color(rgb(0, 0, 0,1)),
+                k.wait(.5,() => {
+                    k.destroy(kill_text);
+                }),
+            ]);
         }
     }
     ShowRespawn(position) {
