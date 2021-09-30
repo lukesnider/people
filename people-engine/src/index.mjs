@@ -80,6 +80,10 @@ export class People {
         return;
       }
       let data = JSON.parse(msg.data);
+      if(data.chat_message) {
+        this.broadcast(JSON.stringify({chat_message:data.chat_message}),session.uid);
+        return;
+      }
       if(data.update_position) {
         this.people[data.update_position.uid].position = data.update_position.position;
         this.positions[data.update_position.uid] = data.update_position.position;

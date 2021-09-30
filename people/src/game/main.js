@@ -16,6 +16,7 @@ export class Game{
         this.load_timeout = 3000;
         this.action_mode = "shoot";
         this.player_safe = true;
+        this.structures = {};
         this.Init();
     }
     async Init() {
@@ -28,16 +29,39 @@ export class Game{
             background: [ 255, 255, 255, ],
         });
         this.LoadSprites();
+        //this.LoadLevels();
         this.SetupWebsocket();
+    }
+    LoadLevels() {
+        k.addLevel([
+            "==========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================",
+            "==========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================",
+        ], {
+            // define the size of each block
+            width: 16,
+            height: 16,
+            // define what each symbol means, by a function returning a comp list (what you'll pass to add())
+            "=": () => [
+                sprite("wall"),
+                area(),
+                solid(),
+            ],
+        });
+    }
+    FocusIn() {
+        k.focus();
     }
     Start() {
         k.mouseClick(()=>{
             if(this.action_mode == "shoot") {
-                if(!this.player_frozen) this.Shoot();
+                if(!this.player_frozen && !this.player.isSafe) this.Shoot();
             }
             if(this.action_mode == "build") {
-                if(!this.player_frozen) this.BuildStructure({x:k.mouseWorldPos().x,y:k.mouseWorldPos().y},this.player);
+                if(!this.player_frozen && !this.player.isSafe) this.BuildStructure({x:k.mouseWorldPos().x,y:k.mouseWorldPos().y},this.player);
             }
+        });
+        k.keyPress("c",()=>{
+            this.vue.toggleChat();
         });
         k.keyPress("k",()=>{
             this.vue.toggleStats();
@@ -46,7 +70,6 @@ export class Game{
             this.vue.toggleGameLegend();
         });
         let that = this
-        //that.TempText('Press "L" for game legend.');
         setTimeout(() => {
             that.vue.toggleGameLegend();
             that.TempText("You're ready to go!");
@@ -107,12 +130,15 @@ export class Game{
                 this.ProcessKill(data.kill);
             }
             if(data.stats_update) {
-                this.UpdateKillDeath(data.stats_update);
+                this.updateStats(data.stats_update);
             }
             if(data.destroy_structure) {
                 this.DestroyStructure(data.destroy_structure);
             }
-          })
+            if(data.chat_message) {
+                this.vue.AddMessage(data.chat_message);
+            }
+        })
           this.websocket.addEventListener("open", () => {
               this.websocket.send(JSON.stringify(this.user))
               this.Start()
@@ -121,7 +147,7 @@ export class Game{
               console.log(err)
           })
     }
-    UpdateKillDeath(stats) {
+    updateStats(stats) {
         this.vue.stats = stats;
     }
     ProcessKill(data) {
@@ -144,6 +170,7 @@ export class Game{
         k.loadSprite('bullet','bullet.png');
         k.loadSprite('steel','steel.png');
         k.loadSprite('robot','robot.png');
+        k.loadSpriteAtlas("dungeon.png", "dungeon.json");
     }
     LoadPlayer(player_data,safe = false) {
         if(player_data.uid == this.user.uid) {
@@ -231,6 +258,7 @@ export class Game{
         });   
     }  
     Shoot() {
+        if(this.player.isSafe) return;
         let mouse = k.mousePos();
         let player_pos = k.center();
         let dirX = mouse.x - player_pos.x
@@ -308,7 +336,7 @@ export class Game{
     BuildStructure(pos,player) {
         if(this.player_frozen) return;
         let uid = uuidv4();
-        k.add([
+        this.structures[uid] = k.add([
             k.sprite('steel'),
             k.pos(pos),
             k.area(),
@@ -323,7 +351,8 @@ export class Game{
         this.websocket.send(JSON.stringify({build_structure:{uid: uid,player_uid:player.meta.uid,pos: pos}}))
     }
     AddStructure(structure) {
-        k.add([
+        if(this.structures[structure.uid]) return;
+        this.structures[structure.uid] = k.add([
             k.sprite('steel'),
             k.pos(structure.pos),
             k.area(),
@@ -337,11 +366,8 @@ export class Game{
         ]);
     }
     DestroyStructure(structure) {
-        every((obj) => {
-            if(obj.uid && obj.uid == structure.uid) {
-                k.destroy(obj);
-            }
-        });
+        k.destroy(this.structures[structure.uid]);
+        delete this.structures[structure.uid];
     }
     SendMovement(player,pos) {
         if(this.player_frozen) return;
