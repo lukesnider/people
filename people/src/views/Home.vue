@@ -55,10 +55,11 @@
           </div>
         </div>
     </div>
-    <div v-if="show.chat" class="overflow-y-scroll building-menu fixed bottom-0 right-0 w-4/12 h-3/4 z-50 bg-white border-2 border-black">
-        <button @click="show.chat = false">Close</button>
+    <div v-show="unread_messages" class="unread_messages_text fixed bottom-12 right-8 w-max">Press "C" for chat</div>
+    <div v-show="unread_messages" class="unread_messages flex justify-center items-center fixed bottom-6 right-6 h-4 w-4 z-50 rounded-full text-white text-sm">{{unread_messages}}</div>
+    <div v-show="show.chat" class="building-menu fixed bottom-0 right-0 w-4/12 h-3/4 z-50 bg-white border-2 border-black">
         <div class="flex flex-col relative h-full">
-          <div class="messages">
+          <div ref="chat-messages" class="h-5/6 messages overflow-y-scroll pb-6">
             <ul class="list-none">
               <li v-for="(message,i) in messages" :key="i" :class="[{'notme':message.author_uid != user.uid},'chat-message']">
                 <div class="message-name text-xs italic">{{message.author}}</div>
@@ -68,9 +69,8 @@
               </li>
             </ul>
           </div>
-          <div class="compose w-full absolute bottom-0 left-0 flex">
-            <textarea v-on:keyup.enter="SendMessage" class="w-3/4 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md" v-model="compose_message"
-                      rows="5" cols="33">
+          <div class="bg-white h-1/6 fixed compose w-full absolute bottom-0 left-0 right-0 flex">
+            <textarea ref="chat-compose" v-on:keyup.enter="SendMessage" class="w-3/4 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md" v-model="compose_message">
             </textarea>
             <button @click="SendMessage" class="w-1/4" >SEND</button>
           </div>
@@ -102,6 +102,7 @@ export default {
       messages: [],
       websocket:false,
       GameObject: false,
+      unread_messages: 0,
     }
   },
   setup() {
@@ -118,6 +119,7 @@ export default {
   },
   methods: {
     AddMessage(message) {
+      if(!this.show.chat) this.unread_messages += 1;
       this.messages.push(message);
     },
     SendMessage() {
@@ -131,6 +133,11 @@ export default {
       this.messages.push(message);
       this.compose_message = "";
       this.websocket.send(JSON.stringify({chat_message:message}));
+      let that = this;
+      console.log(this.$refs)
+      this.$nextTick(()=>{
+        that.$refs["chat-messages"].scrollTop = that.$refs["chat-messages"].scrollHeight;
+      })
     },
     CloseAll() {
       for(let i in this.show){
@@ -140,7 +147,14 @@ export default {
     },
     toggleChat() {
       this.show.chat = !this.show.chat;
-      if(!this.show.chat) this.GameObject.FocusIn();
+      let that = this;
+      this.$nextTick(()=>{
+        if(!that.show.chat) that.GameObject.FocusIn();
+        if(that.show.chat) {
+          that.unread_messages = 0;
+          that.$refs["chat-compose"].focus();
+        }
+      })
     },
     toggleStats() {
       this.show.kill_death = !this.show.kill_death;
@@ -163,7 +177,7 @@ export default {
   mounted() {
     this.LoadPlayer();
     const store = useStore()
-    this.websocket = new WebSocket("wss://people-engine.originalbuilders.workers.dev/?token="+store.state.token);
+    this.websocket = new WebSocket("wss://people-engine-test.originalbuilders.workers.dev/?token="+store.state.token);
     let gameContainer = document.querySelector('#people');
     this.GameObject = new Game(gameContainer.offsetWidth,gameContainer.offsetHeight,store.state.user,this.websocket,this);
     let that = this;
@@ -189,7 +203,7 @@ export default {
   }
 }
 </script>
-<style scoped>
+<style>
 .people {
   height:100vh;
   width: 100%;
@@ -213,4 +227,29 @@ export default {
   text-align: right;
   width: 100%;
 }
+.unread_messages_text {
+  color: rgba(255, 82, 82, 1);
+}
+.unread_messages {
+  background: rgba(255, 82, 82, 1);
+  box-shadow: 0 0 0 0 rgba(255, 82, 82, 1);
+  animation: pulse-red 2s infinite;
+}
+@keyframes pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7);
+  }
+  
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(255, 82, 82, 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+  }
+}
+
 </style>

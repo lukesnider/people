@@ -17,6 +17,10 @@ export class Game{
         this.action_mode = "shoot";
         this.player_safe = true;
         this.structures = {};
+        this.respawn = {
+            button: false,
+            text: false,
+        };
         this.Init();
     }
     async Init() {
@@ -52,6 +56,9 @@ export class Game{
         k.focus();
     }
     Start() {
+        k.action("button", b => {
+            if (b.isClicked()) b.clickAction();
+        });
         k.mouseClick(()=>{
             if(this.action_mode == "shoot") {
                 if(!this.player_frozen && !this.player.isSafe) this.Shoot();
@@ -99,6 +106,9 @@ export class Game{
             let data = JSON.parse(event.data);
             if(data.joined) {
               this.LoadPlayer(data.joined,true);
+            }
+            if(data.respawn) {
+                this.LoadPlayer(data.respawn,true);
             }
             if(data.people) {
               for(let uid in data.people) {
@@ -165,6 +175,37 @@ export class Game{
             }),
         ]);
         this.RemovePlayer(data.hit.uid);
+        if(data.hit.uid == this.user.uid) {
+            this.ShowRespawn(player_last_position);
+        }
+    }
+    ShowRespawn(position) {
+        this.respawn.button = k.add([
+            rect(160, 30),
+            pos({x:position.x,y:position.y-50}),
+            outline(1),
+            area(),
+            cursor("pointer"),
+            "button",
+            {
+                clickAction: () => this.DoRespawn(),
+            },
+        ]);
+        this.respawn.text = k.add([
+            text("Respawn",{
+                size: 26,
+            }),
+            cursor("pointer"),
+            pos({x:position.x+15,y:position.y-48}),
+        ]);
+    }
+    DoRespawn() {
+        if(this.respawn.button) k.destroy(this.respawn.button); 
+        if(this.respawn.text) k.destroy(this.respawn.text); 
+        if(this.player) {
+            this.RemovePlayer(this.player.meta.uid);
+        }
+        this.websocket.send(JSON.stringify({respawn: this.user}));
     }
     LoadSprites() {
         k.loadSprite('bullet','bullet.png');
@@ -183,6 +224,7 @@ export class Game{
             ]);
             this.player = this.players[player_data.uid];
             this.PlayerMovement(this.player);
+            if(player_data.unfreeze) this.player_frozen = false;
         }else{
             this.players[player_data.uid] = k.add([
                 k.sprite('robot'),

@@ -140,6 +140,16 @@ export class People {
         await this.state.storage.put("stats", this.stats);
         return;
       }
+      if(data.respawn) {
+        this.positions[data.respawn.uid] = {
+          x: Math.random() * (500 - -500) + -500,
+          y: Math.random() * (500 - -500) + -500,
+        }
+        data.respawn.position = this.positions[data.respawn.uid];
+        data.respawn.unfreeze = true;
+        this.broadcast(JSON.stringify({respawn: data.respawn}));
+        return;
+      }
       if(!receivedUserInfo){
         session.name = "" + (data.name || "anonymous");
         session.uid = data.uid;
