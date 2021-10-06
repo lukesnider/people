@@ -102,6 +102,7 @@ export class People {
       if(data.chat_message) {
         this.broadcast(JSON.stringify({chat_message:data.chat_message}),session.uid);
         this.chat_messages.push(data.chat_message);
+        if(this.chat_messages.length > 100) this.chat_messages.shift();
         return;
       }
       if(data.update_position) {
