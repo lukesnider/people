@@ -148,6 +148,9 @@ export class Game{
             if(data.chat_message) {
                 this.vue.AddMessage(data.chat_message);
             }
+            if(data.chat_messages) {
+                this.vue.AddMessages(data.chat_messages);
+            }
         })
           this.websocket.addEventListener("open", () => {
               this.websocket.send(JSON.stringify(this.user))

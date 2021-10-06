@@ -36,6 +36,7 @@ export class People {
     this.positions = {};
     this.stats = {};
     this.structures = {};
+    this.chat_messages = [];
     this.state.blockConcurrencyWhile(async () => {
         let stored_structures= await this.state.storage.get("structures");
         this.structures = stored_structures || {};
@@ -43,29 +44,13 @@ export class People {
         this.stats = stored_stats || {};
         let stored_positions= await this.state.storage.get("positions");
         this.positions = stored_positions || [];
+        let chat_messages_stored = await this.state.storage.get("chat_messages");
+        this.chat_messages = chat_messages_stored || [];
     })
   }
   // Handle HTTP requests from clients.
   async fetch(request) {
-    // let auth_email=false,decoded=false;
-    // const url = new URL(request.url)
-    // let jwt_token = url.searchParams.get("token");
-    // try {
-    //   let isValid = await jwt.verify(jwt_token,USER_PW_SECRET);
-    //   if(!isValid) {
-    //     return new Response("Invalid Token", {
-    //       headers: corsHeaders,
-    //       status: 403,
-    //     })
-    //   }
-    //   decoded = await jwt.decode(jwt_token);
-    //   auth_email = decoded.email;
-    // } catch(err) {
-    //   return new Response(err.message, {
-    //     headers: corsHeaders,
-    //     status: 403,
-    //   })
-    // }
+
     const webSocketPair = new WebSocketPair()
     const [client, server] = Object.values(webSocketPair)
     let webSocket = server
@@ -80,8 +65,43 @@ export class People {
         return;
       }
       let data = JSON.parse(msg.data);
+      if(!receivedUserInfo){
+        session.name = "" + (data.name || "anonymous");
+        session.uid = data.uid;
+        if(!this.positions[data.uid]) {
+          this.positions[data.uid] = {
+            x: Math.random() * (500 - -500) + -500,
+            y: Math.random() * (500 - -500) + -500,
+          }
+        }
+        if(!this.stats[data.uid]) {
+          this.stats[data.uid] = {
+            name: data.name,
+            structures: {
+              built: 0,
+              destroyed: 0,
+            },
+            kills: [],
+            deaths: [],
+          };
+        }
+        data.position = this.positions[data.uid];
+        //await this.state.storage.put("stats", this.stats);
+        this.people[data.uid] = data;
+        this.broadcast(JSON.stringify({joined: data}));
+        webSocket.send(JSON.stringify({people: this.people}));
+        webSocket.send(JSON.stringify({structures: this.structures}));
+        webSocket.send(JSON.stringify({stats_update: this.stats}));
+        webSocket.send(JSON.stringify({chat_messages: this.chat_messages}));
+        receivedUserInfo = true;
+        return new Response(null, {
+          status: 101,
+          webSocket: client
+        })
+      }
       if(data.chat_message) {
         this.broadcast(JSON.stringify({chat_message:data.chat_message}),session.uid);
+        this.chat_messages.push(data.chat_message);
         return;
       }
       if(data.update_position) {
@@ -150,39 +170,7 @@ export class People {
         this.broadcast(JSON.stringify({respawn: data.respawn}));
         return;
       }
-      if(!receivedUserInfo){
-        session.name = "" + (data.name || "anonymous");
-        session.uid = data.uid;
-        if(!this.positions[data.uid]) {
-          this.positions[data.uid] = {
-            x: Math.random() * (500 - -500) + -500,
-            y: Math.random() * (500 - -500) + -500,
-          }
-        }
-        if(!this.stats[data.uid]) {
-          this.stats[data.uid] = {
-            name: data.name,
-            structures: {
-              built: 0,
-              destroyed: 0,
-            },
-            kills: [],
-            deaths: [],
-          };
-        }
-        data.position = this.positions[data.uid];
-        await this.state.storage.put("stats", this.stats);
-        this.people[data.uid] = data;
-        this.broadcast(JSON.stringify({joined: data}));
-        webSocket.send(JSON.stringify({people: this.people}));
-        webSocket.send(JSON.stringify({structures: this.structures}));
-        webSocket.send(JSON.stringify({stats_update: this.stats}));
-        receivedUserInfo = true;
-        return new Response(null, {
-          status: 101,
-          webSocket: client
-        })
-      }
+
       data = { name: session.name, message: "" + data.message };
       data.timestamp = Math.max(Date.now(), this.lastTimestamp + 1);
       this.lastTimestamp = data.timestamp;
@@ -193,6 +181,7 @@ export class People {
       await this.state.storage.put("structures", this.structures);
       await this.state.storage.put("stats", this.stats);
       await this.state.storage.put("positions", this.positions);
+      await this.state.storage.put("chat_messages", this.chat_messages);
       session.quit = true;
       this.sessions = this.sessions.filter(member => member !== session);
       if (session.name) {

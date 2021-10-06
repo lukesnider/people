@@ -118,6 +118,9 @@ export default {
     }
   },
   methods: {
+    AddMessages(messages) {
+      this.messages = messages;
+    },
     AddMessage(message) {
       if(!this.show.chat) this.unread_messages += 1;
       this.messages.push(message);
