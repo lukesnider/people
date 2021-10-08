@@ -1,24 +1,43 @@
 // import jwt from "@tsndr/cloudflare-worker-jwt";
+import webpush from 'web-push';
+
 const corsHeaders = {
   "content-type": "application/json;charset=UTF-8",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
   "Access-Control-Allow-Headers": "*",
 }
+var publicVapidKey = 'BHNDnILTEvKcwYFfIhyOGoxecSf4wjoIEL-8EbyO-0scqnrCwNjR5uEPpz4utoAXjucSizX2Fa8VNgsIwMF5HF0';
+var privateVapidKey  = 'zyCG8N9os8-3qMEmeVWt2gBd3c1-bbpaI1MXfEWTg_o';
 // Worker
 export default {
   async fetch(request, env) {
+    webpush.setVapidDetails(
+      'mailto:sniderwebdev@gmail.com',
+      publicVapidKey,
+      privateVapidKey,
+    );
     return await handleRequest(request, env);
   }
 }
 async function handleRequest(request, env) {
   try {
-    const upgradeHeader = request.headers.get("Upgrade")
-    if (!upgradeHeader || upgradeHeader !== "websocket") {
-      return new Response("Expected Upgrade: websocket", { status: 426 })
-    }
     let id = env.PEOPLE.idFromName("Meeting Hall");
     let obj = env.PEOPLE.get(id);
+    const upgradeHeader = request.headers.get("Upgrade")
+    if (!upgradeHeader || upgradeHeader !== "websocket") {
+      if(request.headers.get("Notifications")){
+        if (request.method.toUpperCase() === "POST") {
+          let response = await obj.HandleNotificationSubscription(request);
+          return response;
+        }
+        if (request.method.toUpperCase() === "GET") {
+          let response = await obj.HandleNotificationBroadcast(request);
+          return response;
+        }
+      }
+      return new Response("Expected Upgrade: websocket", { status: 426 })
+    }
     let response = await obj.fetch(request);
     return response;
   } catch(error) {
@@ -37,6 +56,7 @@ export class People {
     this.stats = {};
     this.structures = {};
     this.chat_messages = [];
+    this.subscriptions = [];
     this.state.blockConcurrencyWhile(async () => {
         let stored_structures= await this.state.storage.get("structures");
         this.structures = stored_structures || {};
@@ -46,7 +66,27 @@ export class People {
         this.positions = stored_positions || [];
         let chat_messages_stored = await this.state.storage.get("chat_messages");
         this.chat_messages = chat_messages_stored || [];
+
+        let subscriptions_stored = await this.state.storage.get("subscriptions");
+        this.subscriptions = subscriptions_stored || [];
     })
+  }
+  async HandleNotificationSubscription(request) {
+    const subscription = JSON.stringify(await request.json())
+    this.subscriptions.push(subscription);
+    await this.state.storage.put("subscriptions", this.subscriptions);
+    return new Response("You have been subscribed", { status: 200 })
+  }
+  async HandleNotificationBroadcast(request) {
+    try {
+      const notification = { title: 'Hey, this is a push notification!' };
+      this.subscriptions.forEach((subscription) => {
+        webpush.sendNotification(subscription, JSON.stringify(notification))
+      });
+      return new Response("Message Sent!", { status: 200 })
+    } catch (e) {
+      return new Response(e.message, { status: 200 })
+    }
   }
   // Handle HTTP requests from clients.
   async fetch(request) {
