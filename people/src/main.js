@@ -3,11 +3,11 @@ import App from './App.vue'
 import router from './router'
 import store from './store'
 import './index.css'
-import PN from './PN'
+// import PN from './PN'
 // import webpush from 'web-push'
 
 
-new PN();
+// new PN();
 
 // Check if service workers are supported
 // function checkNotificationPromise() {
@@ -51,7 +51,7 @@ new PN();
 
 
 
-// createApp(App).use(store).use(router).mount('#app')
+createApp(App).use(store).use(router).mount('#app')
 
 
 
